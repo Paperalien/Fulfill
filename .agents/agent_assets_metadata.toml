@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Wusj0mgQYa1VZ6HhxnQ3y"
+uri = "file://replit.md"
+type = "text"
+title = "replit.md"
