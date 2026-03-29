@@ -1,151 +1,128 @@
 import { useRef, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { SearchField, DateOperator, SearchState } from '../types/task';
-import { useSearchShortcuts } from '../utils/useSearchShortcuts';
+import { SearchState, SearchField, DateOperator, SortOrder } from '../types/task';
+import { SORT_FIELD_LABELS, getSortLabel } from '../utils/sortUtils';
 
-const FIELDS: { value: SearchField; label: string }[] = [
-  { value: 'title', label: 'Title' },
-  { value: 'description', label: 'Description' },
-  { value: 'status', label: 'Status' },
-  { value: 'storyPoints', label: 'Story Points' },
-  { value: 'dueDate', label: 'Due Date' },
-  { value: 'inProgressAt', label: 'In Progress Date' },
-  { value: 'createdAt', label: 'Created Date' },
-];
+interface Props {
+  search: SearchState;
+  onSearchChange: (s: SearchState) => void;
+  sortField: SearchField;
+  sortOrder: SortOrder;
+  onSortChange: (field: SearchField, order: SortOrder) => void;
+}
 
 const DATE_FIELDS: SearchField[] = ['dueDate', 'inProgressAt', 'createdAt'];
 const DATE_OPERATORS: { value: DateOperator; label: string }[] = [
-  { value: 'eq', label: 'On' },
-  { value: 'gt', label: 'After' },
-  { value: 'lt', label: 'Before' },
-  { value: 'gte', label: 'On or After' },
-  { value: 'lte', label: 'On or Before' },
+  { value: 'eq', label: '= on' },
+  { value: 'gt', label: '> after' },
+  { value: 'lt', label: '< before' },
+  { value: 'gte', label: '≥ on/after' },
+  { value: 'lte', label: '≤ on/before' },
 ];
 
-const STATUS_OPTIONS = [
-  { value: 'todo', label: 'To Do' },
-  { value: 'in-progress', label: 'In Progress' },
-  { value: 'done', label: 'Done' },
+const FIELD_OPTIONS: { value: SearchField; label: string }[] = [
+  { value: 'title', label: 'Title' },
+  { value: 'description', label: 'Description' },
+  { value: 'status', label: 'Status' },
+  { value: 'tags', label: 'Tags' },
+  { value: 'storyPoints', label: 'Story Points' },
+  { value: 'dueDate', label: 'Due Date' },
+  { value: 'inProgressAt', label: 'In Progress Since' },
+  { value: 'createdAt', label: 'Created Date' },
 ];
 
-const STORY_POINT_OPTIONS = [1, 2, 3, 5, 8, 13, 21];
-
-interface SearchBarProps {
-  state: SearchState;
-  onChange: (state: SearchState) => void;
-}
-
-export default function SearchBar({ state, onChange }: SearchBarProps) {
+export function SearchBar({ search, onSearchChange, sortField, sortOrder, onSortChange }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const isMac = navigator.platform.toUpperCase().includes('MAC');
-  const isDateField = DATE_FIELDS.includes(state.field);
-
-  const handleClear = () => onChange({ ...state, value: '' });
-
-  useSearchShortcuts(inputRef, state.value, handleClear);
+  const isDate = DATE_FIELDS.includes(search.field);
 
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.value = state.value;
+    function handleKey(e: KeyboardEvent) {
+      if (
+        (e.key === '/' || ((e.metaKey || e.ctrlKey) && e.key === 'f')) &&
+        !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)
+      ) {
+        e.preventDefault();
+        inputRef.current?.focus();
+      } else if (e.key === 'Escape') {
+        inputRef.current?.blur();
+        onSearchChange({ ...search, value: '' });
+      }
     }
-  }, [state.field]);
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [search, onSearchChange]);
 
-  const baseInput =
-    'flex-1 px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground';
+  function cycleSortOrder() {
+    if (sortField !== search.field) {
+      onSortChange(search.field, 'asc');
+    } else {
+      onSortChange(sortField, sortOrder === 'asc' ? 'desc' : 'asc');
+    }
+  }
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div className="flex flex-wrap gap-2 items-center">
+      {/* Field selector */}
       <select
-        className="px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-        value={state.field}
-        onChange={(e) =>
-          onChange({ field: e.target.value as SearchField, value: '', dateOperator: 'eq' })
-        }
-        data-testid="search-field-select"
+        value={search.field}
+        onChange={(e) => onSearchChange({ ...search, field: e.target.value as SearchField, value: '' })}
+        className="h-9 rounded-md border border-border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       >
-        {FIELDS.map((f) => (
-          <option key={f.value} value={f.value}>
-            {f.label}
-          </option>
+        {FIELD_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
         ))}
       </select>
 
-      {isDateField && (
+      {/* Date operator */}
+      {isDate && (
         <select
-          className="px-3 py-2 text-sm bg-background border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-          value={state.dateOperator}
-          onChange={(e) => onChange({ ...state, dateOperator: e.target.value as DateOperator })}
-          data-testid="search-date-operator"
+          value={search.dateOperator}
+          onChange={(e) => onSearchChange({ ...search, dateOperator: e.target.value as DateOperator })}
+          className="h-9 rounded-md border border-border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
           {DATE_OPERATORS.map((op) => (
-            <option key={op.value} value={op.value}>
-              {op.label}
-            </option>
+            <option key={op.value} value={op.value}>{op.label}</option>
           ))}
         </select>
       )}
 
-      <div className="relative flex-1 min-w-[180px]">
-        {state.field === 'status' ? (
-          <select
-            className={baseInput + ' w-full'}
-            value={state.value}
-            onChange={(e) => onChange({ ...state, value: e.target.value })}
-            data-testid="search-status-select"
-          >
-            <option value="">Any status</option>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        ) : state.field === 'storyPoints' ? (
-          <select
-            className={baseInput + ' w-full'}
-            value={state.value}
-            onChange={(e) => onChange({ ...state, value: e.target.value })}
-            data-testid="search-points-select"
-          >
-            <option value="">Any points</option>
-            {STORY_POINT_OPTIONS.map((p) => (
-              <option key={p} value={p}>
-                {p} pts
-              </option>
-            ))}
-          </select>
-        ) : isDateField ? (
-          <input
-            ref={inputRef}
-            type="date"
-            className={baseInput + ' w-full'}
-            value={state.value}
-            onChange={(e) => onChange({ ...state, value: e.target.value })}
-            data-testid="search-date-input"
-          />
-        ) : (
-          <input
-            ref={inputRef}
-            type="text"
-            className={baseInput + ' w-full pr-8'}
-            placeholder={`Search by ${FIELDS.find((f) => f.value === state.field)?.label.toLowerCase()}… ${isMac ? '⌘F' : 'Ctrl+F'} or /`}
-            value={state.value}
-            onChange={(e) => onChange({ ...state, value: e.target.value })}
-            data-testid="search-text-input"
-          />
-        )}
-
-        {state.value && (
+      {/* Search input */}
+      <div className="relative flex-1 min-w-48">
+        <input
+          ref={inputRef}
+          type={isDate ? 'date' : search.field === 'storyPoints' ? 'number' : 'text'}
+          value={search.value}
+          onChange={(e) => onSearchChange({ ...search, value: e.target.value })}
+          placeholder={
+            search.field === 'status'
+              ? 'not-started, in-progress, done, or column name…'
+              : search.field === 'tags'
+              ? 'Filter by tag…'
+              : `Search by ${SORT_FIELD_LABELS[search.field].toLowerCase()}… (/ or ⌘F)`
+          }
+          className="h-9 w-full rounded-md border border-border bg-background px-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        {search.value && (
           <button
-            type="button"
-            onClick={handleClear}
-            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            data-testid="search-clear-btn"
+            onClick={() => onSearchChange({ ...search, value: '' })}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-lg leading-none"
+            aria-label="Clear search"
           >
-            <X size={14} />
+            ×
           </button>
         )}
       </div>
+
+      {/* Sort */}
+      <button
+        onClick={cycleSortOrder}
+        className="h-9 px-3 rounded-md border border-border bg-background text-sm hover:bg-muted transition-colors flex items-center gap-1"
+        title="Toggle sort"
+      >
+        <span className="text-muted-foreground">Sort:</span>
+        <span className="font-medium">{SORT_FIELD_LABELS[sortField]}</span>
+        <span className="text-muted-foreground text-xs">{getSortLabel(sortField, sortOrder)}</span>
+        <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+      </button>
     </div>
   );
 }

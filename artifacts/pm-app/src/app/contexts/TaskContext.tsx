@@ -1,10 +1,15 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { Task, Sprint, TaskStatus } from '../types/task';
-import { getTasks, saveTasks, getSprints, saveSprints, seedIfNeeded } from '../utils/storage';
+import { Task, Sprint, KanbanColumn, SemanticStatus } from '../types/task';
+import {
+  getTasks, saveTasks, getSprints, saveSprints,
+  getColumns, saveColumns, seedIfNeeded,
+} from '../utils/storage';
+import { getSemanticStatus } from '../utils/taskUtils';
 
 interface TaskContextValue {
   tasks: Task[];
   sprints: Sprint[];
+  columns: KanbanColumn[];
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => Task;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
@@ -15,6 +20,12 @@ interface TaskContextValue {
   addSprint: (sprint: Omit<Sprint, 'id'>) => Sprint;
   updateSprint: (id: string, updates: Partial<Sprint>) => void;
   deleteSprint: (id: string) => void;
+  addColumn: (col: Omit<KanbanColumn, 'id' | 'order'>) => KanbanColumn;
+  updateColumn: (id: string, updates: Partial<KanbanColumn>) => void;
+  deleteColumn: (id: string, reassignToId: string) => void;
+  reorderColumns: (orderedIds: string[]) => void;
+  getSemanticStatusForTask: (task: Task) => SemanticStatus;
+  doneColumnIds: () => string[];
 }
 
 const TaskContext = createContext<TaskContextValue | null>(null);
@@ -25,29 +36,20 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     return getTasks();
   });
   const [sprints, setSprints] = useState<Sprint[]>(() => getSprints());
+  const [columns, setColumns] = useState<KanbanColumn[]>(() => getColumns());
 
-  useEffect(() => {
-    saveTasks(tasks);
-  }, [tasks]);
+  useEffect(() => { saveTasks(tasks); }, [tasks]);
+  useEffect(() => { saveSprints(sprints); }, [sprints]);
+  useEffect(() => { saveColumns(columns); }, [columns]);
 
-  useEffect(() => {
-    saveSprints(sprints);
-  }, [sprints]);
-
-  function generateId() {
-    return `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  function uid() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
   function addTask(partial: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'order'>): Task {
     const maxOrder = tasks.length > 0 ? Math.max(...tasks.map((t) => t.order)) : -1;
     const now = new Date().toISOString();
-    const newTask: Task = {
-      ...partial,
-      id: generateId(),
-      createdAt: now,
-      updatedAt: now,
-      order: maxOrder + 1,
-    };
+    const newTask: Task = { ...partial, id: `task-${uid()}`, createdAt: now, updatedAt: now, order: maxOrder + 1 };
     setTasks((prev) => [...prev, newTask]);
     return newTask;
   }
@@ -56,10 +58,22 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== id) return t;
-        const updated = { ...t, ...updates, updatedAt: new Date().toISOString() };
-        if (updates.status === 'in-progress' && t.status !== 'in-progress') {
-          updated.inProgressAt = new Date().toISOString();
+        const now = new Date().toISOString();
+        const updated = { ...t, ...updates, updatedAt: now };
+
+        // Track inProgressAt when moving into an in-progress column
+        if (updates.columnId && updates.columnId !== t.columnId) {
+          const newCol = columns.find((c) => c.id === updates.columnId);
+          const oldCol = columns.find((c) => c.id === t.columnId);
+          if (newCol?.semanticStatus === 'in-progress' && oldCol?.semanticStatus !== 'in-progress') {
+            updated.inProgressAt = now;
+          } else if (newCol?.semanticStatus !== 'in-progress') {
+            // Moving out of in-progress — clear the timestamp display
+            // (keep the data but clear inProgressAt so the badge disappears)
+            updated.inProgressAt = undefined;
+          }
         }
+
         return updated;
       })
     );
@@ -67,96 +81,102 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
   function deleteTask(id: string) {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id ? { ...t, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : t
-      )
+      prev.map((t) => t.id === id ? { ...t, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : t)
     );
   }
 
   function undeleteTask(id: string) {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, deletedAt: undefined, updatedAt: new Date().toISOString() }
-          : t
-      )
+      prev.map((t) => t.id === id ? { ...t, deletedAt: undefined, updatedAt: new Date().toISOString() } : t)
     );
   }
 
   function archiveTask(id: string) {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, archivedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-          : t
-      )
+      prev.map((t) => t.id === id ? { ...t, archivedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } : t)
     );
   }
 
   function unarchiveTask(id: string) {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, archivedAt: undefined, updatedAt: new Date().toISOString() }
-          : t
-      )
+      prev.map((t) => t.id === id ? { ...t, archivedAt: undefined, updatedAt: new Date().toISOString() } : t)
     );
   }
 
   function archiveDoneTasks(taskIds?: string[]) {
     const now = new Date().toISOString();
+    const doneIds = new Set(doneColumnIds());
     setTasks((prev) =>
       prev.map((t) => {
         const shouldArchive = taskIds
           ? taskIds.includes(t.id)
-          : t.status === 'done' && !t.archivedAt && !t.deletedAt;
-        if (shouldArchive) {
-          return { ...t, archivedAt: now, updatedAt: now };
-        }
-        return t;
+          : doneIds.has(t.columnId) && !t.archivedAt && !t.deletedAt;
+        return shouldArchive ? { ...t, archivedAt: now, updatedAt: now } : t;
       })
     );
   }
 
   function addSprint(partial: Omit<Sprint, 'id'>): Sprint {
-    const newSprint: Sprint = {
-      ...partial,
-      id: `sprint-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    };
-    setSprints((prev) => [...prev, newSprint]);
-    return newSprint;
+    const s: Sprint = { ...partial, id: `sprint-${uid()}` };
+    setSprints((prev) => [...prev, s]);
+    return s;
   }
 
   function updateSprint(id: string, updates: Partial<Sprint>) {
-    setSprints((prev) => prev.map((s) => (s.id === id ? { ...s, ...updates } : s)));
+    setSprints((prev) => prev.map((s) => s.id === id ? { ...s, ...updates } : s));
   }
 
   function deleteSprint(id: string) {
     setSprints((prev) => prev.filter((s) => s.id !== id));
     setTasks((prev) =>
-      prev.map((t) =>
-        t.sprintId === id ? { ...t, sprintId: undefined, updatedAt: new Date().toISOString() } : t
-      )
+      prev.map((t) => t.sprintId === id ? { ...t, sprintId: undefined, updatedAt: new Date().toISOString() } : t)
     );
   }
 
+  function addColumn(partial: Omit<KanbanColumn, 'id' | 'order'>): KanbanColumn {
+    const maxOrder = columns.length > 0 ? Math.max(...columns.map((c) => c.order)) : -1;
+    const col: KanbanColumn = { ...partial, id: `col-${uid()}`, order: maxOrder + 1 };
+    setColumns((prev) => [...prev, col]);
+    return col;
+  }
+
+  function updateColumn(id: string, updates: Partial<KanbanColumn>) {
+    setColumns((prev) => prev.map((c) => c.id === id ? { ...c, ...updates } : c));
+  }
+
+  function deleteColumn(id: string, reassignToId: string) {
+    setColumns((prev) => prev.filter((c) => c.id !== id));
+    setTasks((prev) =>
+      prev.map((t) => t.columnId === id ? { ...t, columnId: reassignToId, updatedAt: new Date().toISOString() } : t)
+    );
+  }
+
+  function reorderColumns(orderedIds: string[]) {
+    setColumns((prev) =>
+      prev.map((c) => {
+        const idx = orderedIds.indexOf(c.id);
+        return idx >= 0 ? { ...c, order: idx } : c;
+      })
+    );
+  }
+
+  function getSemanticStatusForTask(task: Task): SemanticStatus {
+    return getSemanticStatus(task, columns);
+  }
+
+  function doneColumnIds(): string[] {
+    return columns.filter((c) => c.semanticStatus === 'done').map((c) => c.id);
+  }
+
   return (
-    <TaskContext.Provider
-      value={{
-        tasks,
-        sprints,
-        addTask,
-        updateTask,
-        deleteTask,
-        undeleteTask,
-        archiveTask,
-        unarchiveTask,
-        archiveDoneTasks,
-        addSprint,
-        updateSprint,
-        deleteSprint,
-      }}
-    >
+    <TaskContext.Provider value={{
+      tasks, sprints, columns,
+      addTask, updateTask, deleteTask, undeleteTask,
+      archiveTask, unarchiveTask, archiveDoneTasks,
+      addSprint, updateSprint, deleteSprint,
+      addColumn, updateColumn, deleteColumn, reorderColumns,
+      getSemanticStatusForTask, doneColumnIds,
+    }}>
       {children}
     </TaskContext.Provider>
   );
@@ -167,5 +187,3 @@ export function useTaskContext() {
   if (!ctx) throw new Error('useTaskContext must be used within TaskProvider');
   return ctx;
 }
-
-export type { TaskStatus };

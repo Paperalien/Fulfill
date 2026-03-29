@@ -1,4 +1,5 @@
-import { Task, SearchField, DateOperator } from '../types/task';
+import { Task, KanbanColumn, SearchField, DateOperator } from '../types/task';
+import { getSemanticStatus } from './taskUtils';
 
 function extractDate(value: string | undefined): string {
   if (!value) return '';
@@ -21,6 +22,7 @@ function compareDates(taskDate: string, filterDate: string, operator: DateOperat
 
 export function filterTasks(
   tasks: Task[],
+  columns: KanbanColumn[],
   field: SearchField,
   value: string,
   dateOperator: DateOperator
@@ -33,8 +35,12 @@ export function filterTasks(
         return task.title.toLowerCase().includes(value.toLowerCase());
       case 'description':
         return task.description.toLowerCase().includes(value.toLowerCase());
-      case 'status':
-        return task.status === value;
+      case 'status': {
+        const sem = getSemanticStatus(task, columns);
+        // Allow matching semantic status or column name
+        const col = columns.find((c) => c.id === task.columnId);
+        return sem === value || col?.name.toLowerCase().includes(value.toLowerCase());
+      }
       case 'storyPoints':
         return task.storyPoints !== undefined && task.storyPoints === Number(value);
       case 'dueDate':
@@ -43,6 +49,8 @@ export function filterTasks(
         return compareDates(extractDate(task.inProgressAt), value, dateOperator);
       case 'createdAt':
         return compareDates(extractDate(task.createdAt), value, dateOperator);
+      case 'tags':
+        return (task.tags ?? []).some((tag) => tag.toLowerCase().includes(value.toLowerCase()));
       default:
         return true;
     }

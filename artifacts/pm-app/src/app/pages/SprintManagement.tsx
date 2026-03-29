@@ -1,25 +1,17 @@
 import { useState } from 'react';
-import { Plus, Trash2, Play, Square, ChevronUp, ChevronDown, Archive } from 'lucide-react';
+import { Plus, Trash2, Play, Square, Archive } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, Sprint, SearchState, SearchField, SortOrder } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
-import { sortTasksByField, getSortLabel, SORT_FIELD_LABELS } from '../utils/sortUtils';
-import SearchBar from '../components/SearchBar';
+import { sortTasksByField } from '../utils/sortUtils';
+import { SearchBar } from '../components/SearchBar';
+import { TagBadge } from '../components/TagInput';
+import { InProgressBadge } from '../components/InProgressBadge';
 
 const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: 'eq' };
 
 function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
-  const { updateTask } = useTaskContext();
-  const statusColors: Record<string, string> = {
-    todo: 'bg-muted text-muted-foreground',
-    'in-progress': 'bg-blue-100 text-blue-700',
-    done: 'bg-green-100 text-green-700',
-  };
-  const statusLabels: Record<string, string> = {
-    todo: 'To Do',
-    'in-progress': 'In Progress',
-    done: 'Done',
-  };
+  const { updateTask, columns } = useTaskContext();
 
   return (
     <div className="flex items-start gap-3 px-4 py-3 border-b border-border hover:bg-accent/20 transition-colors" data-testid={`sprint-task-${task.id}`}>
@@ -28,10 +20,8 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
         {task.description && (
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
         )}
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColors[task.status]}`}>
-            {statusLabels[task.status]}
-          </span>
+        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+          <InProgressBadge task={task} columns={columns} />
           {task.storyPoints && (
             <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
               {task.storyPoints} pts
@@ -40,6 +30,7 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
           {task.dueDate && (
             <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>
           )}
+          {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
         </div>
       </div>
       <div className="shrink-0">
@@ -51,9 +42,7 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
         >
           <option value="">Backlog</option>
           {sprints.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
+            <option key={s.id} value={s.id}>{s.name}</option>
           ))}
         </select>
       </div>
@@ -62,7 +51,7 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
 }
 
 export default function SprintManagement() {
-  const { tasks, sprints, addTask, addSprint, updateSprint, deleteSprint, archiveDoneTasks } = useTaskContext();
+  const { tasks, sprints, columns, addTask, addSprint, updateSprint, deleteSprint, archiveDoneTasks, doneColumnIds } = useTaskContext();
   const [search, setSearch] = useState<SearchState>(DEFAULT_SEARCH);
   const [sortField, setSortField] = useState<SearchField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
@@ -77,19 +66,29 @@ export default function SprintManagement() {
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskDesc, setNewTaskDesc] = useState('');
 
+  const todoColId = columns.find((c) => c.semanticStatus === 'not-started')?.id ?? columns[0]?.id ?? 'col-todo';
   const activeSprint = sprints.find((s) => s.isActive);
-  const activeTasks = tasks.filter((t) => !t.archivedAt && !t.deletedAt);
-  const filtered = filterTasks(activeTasks, search.field, search.value, search.dateOperator);
-  const sorted = sortTasksByField(filtered, sortField, sortOrder);
+  const activeTasks = tasks.filter((t) => !t.archivedAt && !t.deletedAt && !t.parentId);
+  const filtered = filterTasks(activeTasks, columns, search.field, search.value, search.dateOperator);
+  const sorted = sortTasksByField(filtered, columns, sortField, sortOrder);
 
+  const doneColIds = new Set(doneColumnIds());
   const sprintTasks = sorted.filter((t) => t.sprintId === activeSprint?.id);
   const backlogTasks = sorted.filter((t) => !t.sprintId);
-  const sprintDoneTasks = sprintTasks.filter((t) => t.status === 'done' && !t.archivedAt);
+  const sprintDoneTasks = sprintTasks.filter((t) => doneColIds.has(t.columnId) && !t.archivedAt);
 
-  const toggleSort = (field: SearchField) => {
-    if (sortField === field) setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'));
-    else { setSortField(field); setSortOrder('asc'); }
-  };
+  const sprintStats = activeSprint
+    ? {
+        total: sprintTasks.length,
+        done: sprintTasks.filter((t) => doneColIds.has(t.columnId)).length,
+        inProgress: sprintTasks.filter((t) => {
+          const col = columns.find((c) => c.id === t.columnId);
+          return col?.semanticStatus === 'in-progress';
+        }).length,
+        points: sprintTasks.reduce((sum, t) => sum + (t.storyPoints ?? 0), 0),
+        donePoints: sprintTasks.filter((t) => doneColIds.has(t.columnId)).reduce((sum, t) => sum + (t.storyPoints ?? 0), 0),
+      }
+    : null;
 
   const handleCreateSprint = () => {
     if (!newSprintName.trim()) return;
@@ -99,9 +98,7 @@ export default function SprintManagement() {
   };
 
   const handleActivate = (sprintId: string) => {
-    sprints.forEach((s) => {
-      if (s.isActive && s.id !== sprintId) updateSprint(s.id, { isActive: false });
-    });
+    sprints.forEach((s) => { if (s.isActive && s.id !== sprintId) updateSprint(s.id, { isActive: false }); });
     updateSprint(sprintId, { isActive: true });
   };
 
@@ -111,12 +108,7 @@ export default function SprintManagement() {
 
   const handleAddTask = (sprintId: string | null) => {
     if (!newTaskTitle.trim()) return;
-    addTask({
-      title: newTaskTitle,
-      description: newTaskDesc,
-      status: 'todo',
-      sprintId: sprintId ?? undefined,
-    });
+    addTask({ title: newTaskTitle, description: newTaskDesc, columnId: todoColId, sprintId: sprintId ?? undefined });
     setNewTaskTitle(''); setNewTaskDesc('');
     setShowAddTask(null);
   };
@@ -168,31 +160,30 @@ export default function SprintManagement() {
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">All Sprints</h3>
         <div className="flex flex-col gap-2">
           {sprints.length === 0 && <p className="text-sm text-muted-foreground">No sprints yet.</p>}
-          {sprints.map((sprint) => (
-            <div key={sprint.id} className="flex items-center gap-3 px-4 py-3 border border-border rounded-lg bg-card" data-testid={`sprint-item-${sprint.id}`}>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{sprint.name}</p>
-                <p className="text-xs text-muted-foreground">{sprint.startDate} → {sprint.endDate}</p>
-              </div>
-              {sprint.isActive && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span>
-              )}
-              <div className="flex items-center gap-1">
-                {!sprint.isActive ? (
-                  <button onClick={() => handleActivate(sprint.id)} className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-accent" data-testid={`sprint-activate-${sprint.id}`}><Play size={12} /> Start</button>
-                ) : (
-                  <button onClick={() => handleDeactivate(sprint.id)} className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-accent" data-testid={`sprint-stop-${sprint.id}`}><Square size={12} /> Stop</button>
+          {sprints.map((sprint) => {
+            const taskCount = tasks.filter((t) => t.sprintId === sprint.id && !t.archivedAt && !t.deletedAt).length;
+            return (
+              <div key={sprint.id} className="flex items-center gap-3 px-4 py-3 border border-border rounded-lg bg-card" data-testid={`sprint-item-${sprint.id}`}>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">{sprint.name}</p>
+                  <p className="text-xs text-muted-foreground">{sprint.startDate} → {sprint.endDate} · {taskCount} tasks</p>
+                </div>
+                {sprint.isActive && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">Active</span>
                 )}
-                <button
-                  onClick={() => setConfirmDeleteSprint(sprint.id)}
-                  className="p-1 text-muted-foreground hover:text-destructive"
-                  data-testid={`sprint-delete-${sprint.id}`}
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="flex items-center gap-1">
+                  {!sprint.isActive ? (
+                    <button onClick={() => handleActivate(sprint.id)} className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-accent" data-testid={`sprint-activate-${sprint.id}`}><Play size={12} /> Start</button>
+                  ) : (
+                    <button onClick={() => handleDeactivate(sprint.id)} className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-accent" data-testid={`sprint-stop-${sprint.id}`}><Square size={12} /> Stop</button>
+                  )}
+                  <button onClick={() => setConfirmDeleteSprint(sprint.id)} className="p-1 text-muted-foreground hover:text-destructive" data-testid={`sprint-delete-${sprint.id}`}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -209,26 +200,30 @@ export default function SprintManagement() {
         </div>
       )}
 
-      <div className="mb-3 flex flex-col gap-2">
-        <SearchBar state={search} onChange={setSearch} />
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground">Sort by:</span>
-          {(['title', 'status', 'storyPoints', 'dueDate', 'createdAt'] as SearchField[]).map((f) => (
-            <button key={f} onClick={() => toggleSort(f)} className={`flex items-center gap-1 text-xs px-2 py-1 rounded border ${sortField === f ? 'bg-primary/10 border-primary text-primary' : 'border-border hover:bg-accent'}`} data-testid={`sprint-sort-${f}`}>
-              {SORT_FIELD_LABELS[f]}
-              {sortField === f && (sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
-            </button>
-          ))}
-          {sortField && <span className="text-xs text-muted-foreground">({getSortLabel(sortField, sortOrder)})</span>}
-        </div>
+      <div className="mb-3">
+        <SearchBar
+          search={search}
+          onSearchChange={setSearch}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onSortChange={(f, o) => { setSortField(f); setSortOrder(o); }}
+        />
       </div>
 
       {activeSprint ? (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-              Active Sprint: {activeSprint.name}
-            </h3>
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Active: {activeSprint.name}
+              </h3>
+              {sprintStats && (
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {sprintStats.done}/{sprintStats.total} done · {sprintStats.inProgress} in progress
+                  {sprintStats.points > 0 && ` · ${sprintStats.donePoints}/${sprintStats.points} pts`}
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               {sprintDoneTasks.length > 0 && (
                 <button

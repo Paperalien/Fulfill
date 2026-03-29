@@ -3,13 +3,13 @@ import { Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { SearchState } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
-import SearchBar from '../components/SearchBar';
+import { SearchBar } from '../components/SearchBar';
 
 const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: 'eq' };
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export default function TrashBin() {
-  const { tasks, undeleteTask } = useTaskContext();
+  const { tasks, columns, undeleteTask } = useTaskContext();
   const [search, setSearch] = useState<SearchState>(DEFAULT_SEARCH);
 
   const now = Date.now();
@@ -21,7 +21,7 @@ export default function TrashBin() {
     })
     .sort((a, b) => (b.deletedAt! > a.deletedAt! ? 1 : -1));
 
-  const filtered = filterTasks(trashedTasks, search.field, search.value, search.dateOperator);
+  const filtered = filterTasks(trashedTasks, columns, search.field, search.value, search.dateOperator);
 
   const daysRemaining = (deletedAt: string) => {
     const ms = THIRTY_DAYS_MS - (now - new Date(deletedAt).getTime());
@@ -43,7 +43,13 @@ export default function TrashBin() {
       </div>
 
       <div className="mb-4">
-        <SearchBar state={search} onChange={setSearch} />
+        <SearchBar
+          search={search}
+          onSearchChange={setSearch}
+          sortField="title"
+          sortOrder="asc"
+          onSortChange={() => {}}
+        />
       </div>
 
       <div className="border border-border rounded-lg overflow-hidden bg-card">

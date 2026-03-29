@@ -3,19 +3,21 @@ import { ArchiveX, Trash2 } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { SearchState } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
-import SearchBar from '../components/SearchBar';
+import { getColumnName } from '../utils/taskUtils';
+import { SearchBar } from '../components/SearchBar';
+import { TagBadge } from '../components/TagInput';
 
 const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: 'eq' };
 
 export default function DoneFolder() {
-  const { tasks, sprints, unarchiveTask, deleteTask } = useTaskContext();
+  const { tasks, sprints, columns, unarchiveTask, deleteTask } = useTaskContext();
   const [search, setSearch] = useState<SearchState>(DEFAULT_SEARCH);
 
   const archivedTasks = tasks
     .filter((t) => t.archivedAt && !t.deletedAt)
     .sort((a, b) => (b.archivedAt! > a.archivedAt! ? 1 : -1));
 
-  const filtered = filterTasks(archivedTasks, search.field, search.value, search.dateOperator);
+  const filtered = filterTasks(archivedTasks, columns, search.field, search.value, search.dateOperator);
 
   const getSprintName = (sprintId?: string) =>
     sprintId ? (sprints.find((s) => s.id === sprintId)?.name ?? 'Unknown sprint') : null;
@@ -28,7 +30,13 @@ export default function DoneFolder() {
       </div>
 
       <div className="mb-4">
-        <SearchBar state={search} onChange={setSearch} />
+        <SearchBar
+          search={search}
+          onSearchChange={setSearch}
+          sortField="title"
+          sortOrder="asc"
+          onSortChange={() => {}}
+        />
       </div>
 
       <div className="border border-border rounded-lg overflow-hidden bg-card">
@@ -41,6 +49,7 @@ export default function DoneFolder() {
         ) : (
           filtered.map((task) => {
             const sprintName = getSprintName(task.sprintId);
+            const colName = getColumnName(task, columns);
             return (
               <div
                 key={task.id}
@@ -52,22 +61,18 @@ export default function DoneFolder() {
                   {task.description && (
                     <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
                   )}
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{colName}</span>
                     {sprintName && (
-                      <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
-                        {sprintName}
-                      </span>
+                      <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">{sprintName}</span>
                     )}
                     {task.storyPoints && (
-                      <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">
-                        {task.storyPoints} pts
-                      </span>
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{task.storyPoints} pts</span>
                     )}
                     {task.archivedAt && (
-                      <span className="text-xs text-muted-foreground">
-                        Archived {task.archivedAt.slice(0, 10)}
-                      </span>
+                      <span className="text-xs text-muted-foreground">Archived {task.archivedAt.slice(0, 10)}</span>
                     )}
+                    {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">

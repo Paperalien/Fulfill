@@ -1,6 +1,12 @@
-import { Task, SearchField, SortOrder } from '../types/task';
+import { Task, KanbanColumn, SearchField, SortOrder } from '../types/task';
+import { getSemanticStatus } from './taskUtils';
 
-export function sortTasksByField(tasks: Task[], field: SearchField, order: SortOrder): Task[] {
+export function sortTasksByField(
+  tasks: Task[],
+  columns: KanbanColumn[],
+  field: SearchField,
+  order: SortOrder
+): Task[] {
   return [...tasks].sort((a, b) => {
     let aVal: string | number = '';
     let bVal: string | number = '';
@@ -15,9 +21,9 @@ export function sortTasksByField(tasks: Task[], field: SearchField, order: SortO
         bVal = b.description.toLowerCase();
         break;
       case 'status': {
-        const order_ = ['todo', 'in-progress', 'done'];
-        aVal = order_.indexOf(a.status);
-        bVal = order_.indexOf(b.status);
+        const semOrder = ['not-started', 'in-progress', 'done'];
+        aVal = semOrder.indexOf(getSemanticStatus(a, columns));
+        bVal = semOrder.indexOf(getSemanticStatus(b, columns));
         break;
       }
       case 'storyPoints':
@@ -36,6 +42,10 @@ export function sortTasksByField(tasks: Task[], field: SearchField, order: SortO
         aVal = a.createdAt?.slice(0, 10) ?? '';
         bVal = b.createdAt?.slice(0, 10) ?? '';
         break;
+      case 'tags':
+        aVal = (a.tags ?? []).join(',').toLowerCase();
+        bVal = (b.tags ?? []).join(',').toLowerCase();
+        break;
       default:
         aVal = a.order;
         bVal = b.order;
@@ -53,9 +63,11 @@ export function getSortLabel(field: SearchField, order: SortOrder): string {
     case 'description':
       return order === 'asc' ? 'A→Z' : 'Z→A';
     case 'status':
-      return order === 'asc' ? 'To Do→Done' : 'Done→To Do';
+      return order === 'asc' ? 'Not Started→Done' : 'Done→Not Started';
     case 'storyPoints':
       return order === 'asc' ? 'Low→High' : 'High→Low';
+    case 'tags':
+      return order === 'asc' ? 'A→Z' : 'Z→A';
     case 'dueDate':
     case 'inProgressAt':
     case 'createdAt':
@@ -73,4 +85,5 @@ export const SORT_FIELD_LABELS: Record<SearchField, string> = {
   dueDate: 'Due Date',
   inProgressAt: 'In Progress Date',
   createdAt: 'Created Date',
+  tags: 'Tags',
 };
