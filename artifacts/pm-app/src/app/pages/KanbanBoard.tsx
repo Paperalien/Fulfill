@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Plus, Archive, Settings, Trash2, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
+import { Plus, Archive, Settings, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, KanbanColumn, SearchState } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
@@ -131,7 +131,6 @@ function ColumnManagerModal({ onClose }: { onClose: () => void }) {
                 </div>
               ) : (
                 <div className="flex items-center gap-2 px-3 py-2">
-                  <GripVertical size={14} className="text-muted-foreground shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{col.name}</p>
                     <p className="text-xs text-muted-foreground">{col.semanticStatus} · {col.color ?? 'gray'}</p>
