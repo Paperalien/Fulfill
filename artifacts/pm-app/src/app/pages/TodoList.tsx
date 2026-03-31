@@ -51,6 +51,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
+  const [notes, setNotes] = useState(task.notes ?? '');
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [dueDate, setDueDate] = useState(task.dueDate ?? '');
   const [tags, setTags] = useState(task.tags ?? []);
@@ -68,7 +69,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   };
 
   const handleSave = () => {
-    updateTask(task.id, { title, description, storyPoints, dueDate: dueDate || undefined, tags });
+    updateTask(task.id, { title, description, notes: notes.trim() || undefined, storyPoints, dueDate: dueDate || undefined, tags });
     setEditing(false);
   };
 
@@ -125,6 +126,17 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
                 data-testid="edit-description-input"
               />
               <div>
+                <label className="text-xs text-muted-foreground mb-1 block">Notes</label>
+                <textarea
+                  className="w-full px-2 py-1 text-xs border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y font-mono leading-relaxed"
+                  rows={4}
+                  placeholder="Free-form notes, scratch space, context…"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  data-testid="edit-notes-input"
+                />
+              </div>
+              <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Tags</label>
                 <TagInput tags={tags} onChange={setTags} />
               </div>
@@ -146,6 +158,9 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
               </p>
               {task.description && (
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+              )}
+              {task.notes && (
+                <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-1 font-mono italic">{task.notes}</p>
               )}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <InProgressBadge task={task} columns={columns} />

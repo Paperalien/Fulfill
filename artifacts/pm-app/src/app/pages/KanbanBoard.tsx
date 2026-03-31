@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Plus, Archive, Settings, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Archive, Settings, Trash2, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, KanbanColumn, SearchState } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
@@ -8,6 +8,7 @@ import { getColumnColor, getSubtaskProgress, isDone } from '../utils/taskUtils';
 import { SearchBar } from '../components/SearchBar';
 import { TagBadge } from '../components/TagInput';
 import { InProgressBadge } from '../components/InProgressBadge';
+import { TaskEditModal } from '../components/TaskEditModal';
 
 const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: 'eq' };
 const SEMANTIC_OPTIONS = [
@@ -19,44 +20,63 @@ const COLOR_OPTIONS = ['gray', 'blue', 'purple', 'green', 'orange', 'red', 'yell
 
 function KanbanCard({ task, index, allTasks, columns }: { task: Task; index: number; allTasks: Task[]; columns: KanbanColumn[] }) {
   const { done: sub_done, total: sub_total } = getSubtaskProgress(task.id, allTasks, columns);
+  const [showEdit, setShowEdit] = useState(false);
+
   return (
-    <Draggable draggableId={task.id} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={`p-3 mb-2 rounded-lg border border-border bg-card shadow-sm cursor-grab active:cursor-grabbing transition-shadow ${
-            snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : 'hover:shadow-md'
-          }`}
-          data-testid={`kanban-card-${task.id}`}
-        >
-          <p className="text-sm font-medium leading-tight">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
-          )}
-          <div className="flex flex-wrap gap-1.5 mt-2">
-            <InProgressBadge task={task} columns={columns} />
-            {task.storyPoints !== undefined && (
-              <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">
-                {task.storyPoints} pts
-              </span>
+    <>
+      <Draggable draggableId={task.id} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            className={`relative p-3 mb-2 rounded-lg border border-border bg-card shadow-sm cursor-grab active:cursor-grabbing transition-shadow group ${
+              snapshot.isDragging ? 'shadow-lg ring-2 ring-primary/30' : 'hover:shadow-md'
+            }`}
+            data-testid={`kanban-card-${task.id}`}
+          >
+            {/* Edit button — stopPropagation prevents drag from starting */}
+            <button
+              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
+              title="Edit task"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => { e.stopPropagation(); setShowEdit(true); }}
+              data-testid={`kanban-edit-${task.id}`}
+            >
+              <Pencil size={12} />
+            </button>
+
+            <p className="text-sm font-medium leading-tight pr-6">{task.title}</p>
+            {task.description && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
             )}
-            {task.dueDate && (
-              <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>
+            {task.notes && (
+              <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-1 font-mono italic">{task.notes}</p>
             )}
-            {sub_total > 0 && (
-              <span className="text-xs text-muted-foreground">{sub_done}/{sub_total} subtasks</span>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              <InProgressBadge task={task} columns={columns} />
+              {task.storyPoints !== undefined && (
+                <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">
+                  {task.storyPoints} pts
+                </span>
+              )}
+              {task.dueDate && (
+                <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>
+              )}
+              {sub_total > 0 && (
+                <span className="text-xs text-muted-foreground">{sub_done}/{sub_total} subtasks</span>
+              )}
+            </div>
+            {(task.tags ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
+              </div>
             )}
           </div>
-          {(task.tags ?? []).length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
-              {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
-            </div>
-          )}
-        </div>
-      )}
-    </Draggable>
+        )}
+      </Draggable>
+      {showEdit && <TaskEditModal task={task} onClose={() => setShowEdit(false)} />}
+    </>
   );
 }
 

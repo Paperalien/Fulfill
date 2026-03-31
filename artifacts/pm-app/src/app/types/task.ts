@@ -25,6 +25,7 @@ export interface Task {
   parentId?: string;          // Single parent task (subtask tree)
   predecessorIds?: string[];  // Tasks that must complete before this one
   tags?: string[];            // Many-to-many labels
+  notes?: string;             // Unstructured free text, unversioned
 }
 
 export interface Sprint {
