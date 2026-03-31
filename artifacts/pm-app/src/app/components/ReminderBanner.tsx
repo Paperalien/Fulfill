@@ -1,4 +1,5 @@
 import { X, Bell } from 'lucide-react';
+import { Link } from 'react-router';
 import { useTaskContext } from '../contexts/TaskContext';
 import { isReminderActive, computeReminderDate, todayStr } from '../utils/taskUtils';
 
@@ -41,10 +42,14 @@ export function ReminderBanner() {
               const label = diff === 0 ? 'today' : diff === 1 ? '1 day overdue' : `${diff} days overdue`;
               return (
                 <li key={task.id} className="flex items-center gap-2">
-                  <span className="text-xs text-amber-700 dark:text-amber-400 flex-1 min-w-0 truncate">
+                  <Link
+                    to="/"
+                    className="text-xs text-amber-700 dark:text-amber-400 flex-1 min-w-0 truncate hover:underline"
+                    title="Go to task"
+                  >
                     {task.title}
                     <span className="text-amber-500 dark:text-amber-500 ml-1">— {label}</span>
-                  </span>
+                  </Link>
                   <button
                     onClick={() => dismiss(task.id)}
                     className="shrink-0 text-amber-500 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"

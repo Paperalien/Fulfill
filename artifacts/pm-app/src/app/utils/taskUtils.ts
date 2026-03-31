@@ -20,13 +20,17 @@ export function computeReminderDate(task: Task): string | undefined {
   return task.reminder;
 }
 
-/** Returns true if the reminder for this task is currently active (due and not dismissed today). */
+/**
+ * Returns true if the reminder for this task is currently active (due and not already dismissed
+ * for this reminder date or later). Dismissal persists until the effective reminder date changes.
+ */
 export function isReminderActive(task: Task): boolean {
   const rd = computeReminderDate(task);
   if (!rd) return false;
   const today = todayStr();
   if (rd > today) return false;
-  if (task.reminderDismissedAt === today) return false;
+  // Dismissed as long as reminderDismissedAt is on or after the effective reminder date
+  if (task.reminderDismissedAt && task.reminderDismissedAt >= rd) return false;
   return true;
 }
 

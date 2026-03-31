@@ -68,9 +68,10 @@ function KanbanCard({ task, index, allTasks, columns }: { task: Task; index: num
                   <RefreshCw size={10} /> {task.recurrence}
                 </span>
               )}
-              {isReminderActive(task) && (
-                <span className="text-xs text-amber-600 flex items-center gap-0.5">
-                  <Bell size={10} /> reminder
+              {task.reminder && (
+                <span className={`text-xs flex items-center gap-0.5 ${isReminderActive(task) ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}>
+                  <Bell size={10} />
+                  {isReminderActive(task) ? 'reminder due' : task.reminder === 'day-before' ? 'day before' : task.reminder === 'on-due-date' ? 'on due date' : task.reminder}
                 </span>
               )}
               {sub_total > 0 && (

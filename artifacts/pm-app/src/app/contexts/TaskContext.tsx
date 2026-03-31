@@ -86,11 +86,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
           const notStartedColId =
             columns.find((c) => c.semanticStatus === 'not-started')?.id ??
             columns[0]?.id;
-          const nextDue = computeNextDueDate(task);
+          const nextDue = computeNextDueDate(updated);
           const maxOrder = Math.max(...prev.map((t) => t.order), -1);
           const spawnId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
           const spawned: Task = {
-            ...task,
+            ...updated,
             id: spawnId,
             columnId: notStartedColId,
             dueDate: nextDue,
