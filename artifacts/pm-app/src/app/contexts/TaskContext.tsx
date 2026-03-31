@@ -4,7 +4,7 @@ import {
   getTasks, saveTasks, getSprints, saveSprints,
   getColumns, saveColumns, seedIfNeeded,
 } from '../utils/storage';
-import { getSemanticStatus } from '../utils/taskUtils';
+import { getSemanticStatus, computeNextDueDate } from '../utils/taskUtils';
 
 interface TaskContextValue {
   tasks: Task[];
@@ -55,28 +55,59 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   }
 
   function updateTask(id: string, updates: Partial<Task>) {
-    setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id !== id) return t;
-        const now = new Date().toISOString();
-        const updated = { ...t, ...updates, updatedAt: now };
+    setTasks((prev) => {
+      const task = prev.find((t) => t.id === id);
+      if (!task) return prev;
 
-        // Track inProgressAt when moving into an in-progress column
-        if (updates.columnId && updates.columnId !== t.columnId) {
-          const newCol = columns.find((c) => c.id === updates.columnId);
-          const oldCol = columns.find((c) => c.id === t.columnId);
-          if (newCol?.semanticStatus === 'in-progress' && oldCol?.semanticStatus !== 'in-progress') {
-            updated.inProgressAt = now;
-          } else if (newCol?.semanticStatus !== 'in-progress') {
-            // Moving out of in-progress — clear the timestamp display
-            // (keep the data but clear inProgressAt so the badge disappears)
-            updated.inProgressAt = undefined;
-          }
+      const now = new Date().toISOString();
+      const updated: Task = { ...task, ...updates, updatedAt: now };
+
+      // Track inProgressAt when moving into an in-progress column
+      if (updates.columnId && updates.columnId !== task.columnId) {
+        const newCol = columns.find((c) => c.id === updates.columnId);
+        const oldCol = columns.find((c) => c.id === task.columnId);
+        if (newCol?.semanticStatus === 'in-progress' && oldCol?.semanticStatus !== 'in-progress') {
+          updated.inProgressAt = now;
+        } else if (newCol?.semanticStatus !== 'in-progress') {
+          updated.inProgressAt = undefined;
         }
+      }
 
-        return updated;
-      })
-    );
+      const mapped = prev.map((t) => (t.id === id ? updated : t));
+
+      // Recurrence: spawn next occurrence when a recurring task moves into a done column
+      if (
+        task.recurrence &&
+        updates.columnId &&
+        updates.columnId !== task.columnId
+      ) {
+        const newCol = columns.find((c) => c.id === updates.columnId);
+        if (newCol?.semanticStatus === 'done') {
+          const notStartedColId =
+            columns.find((c) => c.semanticStatus === 'not-started')?.id ??
+            columns[0]?.id;
+          const nextDue = computeNextDueDate(task);
+          const maxOrder = Math.max(...prev.map((t) => t.order), -1);
+          const spawnId = `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          const spawned: Task = {
+            ...task,
+            id: spawnId,
+            columnId: notStartedColId,
+            dueDate: nextDue,
+            createdAt: now,
+            updatedAt: now,
+            order: maxOrder + 1,
+            archivedAt: undefined,
+            deletedAt: undefined,
+            inProgressAt: undefined,
+            reminderDismissedAt: undefined,
+          };
+          return [...mapped, spawned];
+        }
+      }
+
+      return mapped;
+    });
   }
 
   function deleteTask(id: string) {

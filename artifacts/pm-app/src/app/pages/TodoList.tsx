@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import { Plus, Trash2, Archive, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus, Trash2, Archive, ChevronRight, ChevronDown, Bell, RefreshCw } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, SearchState, SortOrder, SearchField } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
 import { sortTasksByField } from '../utils/sortUtils';
-import { getSubtasks, getSubtaskProgress, isDone } from '../utils/taskUtils';
+import { getSubtasks, getSubtaskProgress, isDone, isReminderActive } from '../utils/taskUtils';
 import { SearchBar } from '../components/SearchBar';
 import { TagBadge, TagInput } from '../components/TagInput';
 import { InProgressBadge } from '../components/InProgressBadge';
 import TaskFields from '../components/TaskFields';
+import ReminderRecurrenceFields from '../components/ReminderRecurrenceFields';
 
 const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: 'eq' };
 
@@ -55,6 +56,8 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [dueDate, setDueDate] = useState(task.dueDate ?? '');
   const [tags, setTags] = useState(task.tags ?? []);
+  const [reminder, setReminder] = useState(task.reminder);
+  const [recurrence, setRecurrence] = useState(task.recurrence);
 
   const doneCols = new Set(doneColumnIds());
   const todoColId = columns.find((c) => c.semanticStatus === 'not-started')?.id ?? columns[0]?.id;
@@ -69,7 +72,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   };
 
   const handleSave = () => {
-    updateTask(task.id, { title, description, notes: notes.trim() || undefined, storyPoints, dueDate: dueDate || undefined, tags });
+    updateTask(task.id, { title, description, notes: notes.trim() || undefined, storyPoints, dueDate: dueDate || undefined, tags, reminder, recurrence });
     setEditing(false);
   };
 
@@ -146,6 +149,12 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
                 onStoryPointsChange={setStoryPoints}
                 onDueDateChange={setDueDate}
               />
+              <ReminderRecurrenceFields
+                reminder={reminder}
+                recurrence={recurrence}
+                onReminderChange={setReminder}
+                onRecurrenceChange={setRecurrence}
+              />
               <div className="flex gap-2">
                 <button onClick={handleSave} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90" data-testid="edit-save-btn">Save</button>
                 <button onClick={() => setEditing(false)} className="px-3 py-1 text-xs border border-border rounded hover:bg-accent" data-testid="edit-cancel-btn">Cancel</button>
@@ -171,6 +180,16 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
                 )}
                 {task.dueDate && (
                   <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>
+                )}
+                {task.recurrence && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                    <RefreshCw size={10} /> {task.recurrence}
+                  </span>
+                )}
+                {isReminderActive(task) && (
+                  <span className="text-xs text-amber-600 flex items-center gap-0.5">
+                    <Bell size={10} /> reminder due
+                  </span>
                 )}
                 {subtasksTotal > 0 && (
                   <span className="text-xs text-muted-foreground">

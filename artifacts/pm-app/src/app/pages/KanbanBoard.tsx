@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Plus, Archive, Settings, Trash2, ChevronUp, ChevronDown, Pencil } from 'lucide-react';
+import { Plus, Archive, Settings, Trash2, ChevronUp, ChevronDown, Pencil, Bell, RefreshCw } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, KanbanColumn, SearchState } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
-import { getColumnColor, getSubtaskProgress, isDone } from '../utils/taskUtils';
+import { getColumnColor, getSubtaskProgress, isDone, isReminderActive } from '../utils/taskUtils';
 import { SearchBar } from '../components/SearchBar';
 import { TagBadge } from '../components/TagInput';
 import { InProgressBadge } from '../components/InProgressBadge';
@@ -62,6 +62,16 @@ function KanbanCard({ task, index, allTasks, columns }: { task: Task; index: num
               )}
               {task.dueDate && (
                 <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>
+              )}
+              {task.recurrence && (
+                <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                  <RefreshCw size={10} /> {task.recurrence}
+                </span>
+              )}
+              {isReminderActive(task) && (
+                <span className="text-xs text-amber-600 flex items-center gap-0.5">
+                  <Bell size={10} /> reminder
+                </span>
               )}
               {sub_total > 0 && (
                 <span className="text-xs text-muted-foreground">{sub_done}/{sub_total} subtasks</span>

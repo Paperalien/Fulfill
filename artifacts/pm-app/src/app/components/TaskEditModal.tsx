@@ -4,6 +4,7 @@ import { Task } from '../types/task';
 import { useTaskContext } from '../contexts/TaskContext';
 import { TagInput } from './TagInput';
 import TaskFields from './TaskFields';
+import ReminderRecurrenceFields from './ReminderRecurrenceFields';
 
 interface Props {
   task: Task;
@@ -21,6 +22,8 @@ export function TaskEditModal({ task, onClose }: Props) {
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [dueDate, setDueDate] = useState(task.dueDate ?? '');
   const [tags, setTags] = useState(task.tags ?? []);
+  const [reminder, setReminder] = useState(task.reminder);
+  const [recurrence, setRecurrence] = useState(task.recurrence);
 
   function handleSave() {
     updateTask(task.id, {
@@ -31,6 +34,8 @@ export function TaskEditModal({ task, onClose }: Props) {
       storyPoints,
       dueDate: dueDate || undefined,
       tags,
+      reminder,
+      recurrence,
     });
     onClose();
   }
@@ -119,6 +124,14 @@ export function TaskEditModal({ task, onClose }: Props) {
             dueDate={dueDate}
             onStoryPointsChange={setStoryPoints}
             onDueDateChange={setDueDate}
+          />
+
+          {/* Reminder + recurrence */}
+          <ReminderRecurrenceFields
+            reminder={reminder}
+            recurrence={recurrence}
+            onReminderChange={setReminder}
+            onRecurrenceChange={setRecurrence}
           />
         </div>
 

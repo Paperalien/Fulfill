@@ -8,6 +8,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
+import { ReminderBanner } from './ReminderBanner';
 
 const NAV_ITEMS = [
   { to: '/', label: 'To-Do', icon: ListTodo, end: true },
@@ -78,8 +79,11 @@ export default function Layout() {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 min-w-0 overflow-auto">
-        <Outlet />
+      <main className="flex-1 min-w-0 overflow-auto flex flex-col">
+        <ReminderBanner />
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

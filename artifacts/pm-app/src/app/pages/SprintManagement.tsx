@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { Plus, Trash2, Play, Square, Archive, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Play, Square, Archive, ChevronDown, ChevronRight, Bell, RefreshCw, Pencil } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, Sprint, SearchState, SearchField, SortOrder } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
 import { sortTasksByField } from '../utils/sortUtils';
+import { isReminderActive } from '../utils/taskUtils';
 import { SearchBar } from '../components/SearchBar';
 import { TagBadge } from '../components/TagInput';
 import { InProgressBadge } from '../components/InProgressBadge';
+import { TaskEditModal } from '../components/TaskEditModal';
 
 const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: 'eq' };
 
@@ -14,12 +16,15 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
   const { updateTask, columns } = useTaskContext();
   const [notesOpen, setNotesOpen] = useState(false);
   const [notes, setNotes] = useState(task.notes ?? '');
+  const [showEdit, setShowEdit] = useState(false);
 
   function saveNotes() {
     updateTask(task.id, { notes: notes.trim() || undefined });
   }
 
   return (
+    <>
+    {showEdit && <TaskEditModal task={task} onClose={() => setShowEdit(false)} />}
     <div className="border-b border-border" data-testid={`sprint-task-${task.id}`}>
       <div className="flex items-start gap-3 px-4 py-3 hover:bg-accent/20 transition-colors group">
         <div className="flex-1 min-w-0">
@@ -40,10 +45,28 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
             {task.dueDate && (
               <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>
             )}
+            {task.recurrence && (
+              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                <RefreshCw size={10} /> {task.recurrence}
+              </span>
+            )}
+            {isReminderActive(task) && (
+              <span className="text-xs text-amber-600 flex items-center gap-0.5">
+                <Bell size={10} /> reminder
+              </span>
+            )}
             {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowEdit(true)}
+            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity p-1 rounded hover:bg-accent"
+            title="Edit task"
+            data-testid={`sprint-edit-${task.id}`}
+          >
+            <Pencil size={13} />
+          </button>
           <button
             onClick={() => { setNotesOpen((v) => !v); setNotes(task.notes ?? ''); }}
             className={`text-xs flex items-center gap-0.5 px-1.5 py-0.5 rounded border transition-colors ${
@@ -85,6 +108,7 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
         </div>
       )}
     </div>
+    </>
   );
 }
 

@@ -1,5 +1,46 @@
 import { Task, KanbanColumn, SemanticStatus } from '../types/task';
 
+export function todayStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Resolves the effective reminder date (YYYY-MM-DD) from a task's reminder + dueDate fields. */
+export function computeReminderDate(task: Task): string | undefined {
+  if (!task.reminder) return undefined;
+  if (task.reminder === 'day-before') {
+    if (!task.dueDate) return undefined;
+    const d = new Date(task.dueDate);
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }
+  if (task.reminder === 'on-due-date') {
+    return task.dueDate;
+  }
+  // Specific date string (YYYY-MM-DD)
+  return task.reminder;
+}
+
+/** Returns true if the reminder for this task is currently active (due and not dismissed today). */
+export function isReminderActive(task: Task): boolean {
+  const rd = computeReminderDate(task);
+  if (!rd) return false;
+  const today = todayStr();
+  if (rd > today) return false;
+  if (task.reminderDismissedAt === today) return false;
+  return true;
+}
+
+/** Computes the next due date for a recurring task (YYYY-MM-DD), or undefined. */
+export function computeNextDueDate(task: Task): string | undefined {
+  if (!task.recurrence) return task.dueDate;
+  const base = task.dueDate ? new Date(task.dueDate) : new Date();
+  const next = new Date(base);
+  if (task.recurrence === 'daily') next.setDate(next.getDate() + 1);
+  if (task.recurrence === 'weekly') next.setDate(next.getDate() + 7);
+  if (task.recurrence === 'monthly') next.setMonth(next.getMonth() + 1);
+  return next.toISOString().slice(0, 10);
+}
+
 export function getSemanticStatus(task: Task, columns: KanbanColumn[]): SemanticStatus {
   const col = columns.find((c) => c.id === task.columnId);
   return col?.semanticStatus ?? 'not-started';
