@@ -75,14 +75,15 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
       const mapped = prev.map((t) => (t.id === id ? updated : t));
 
-      // Recurrence: spawn next occurrence when a recurring task moves into a done column
+      // Recurrence: spawn next occurrence only when transitioning INTO a done column FROM a non-done column
       if (
         task.recurrence &&
         updates.columnId &&
         updates.columnId !== task.columnId
       ) {
         const newCol = columns.find((c) => c.id === updates.columnId);
-        if (newCol?.semanticStatus === 'done') {
+        const oldCol = columns.find((c) => c.id === task.columnId);
+        if (newCol?.semanticStatus === 'done' && oldCol?.semanticStatus !== 'done') {
           const notStartedColId =
             columns.find((c) => c.semanticStatus === 'not-started')?.id ??
             columns[0]?.id;
