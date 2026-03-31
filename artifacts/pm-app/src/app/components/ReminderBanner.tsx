@@ -43,9 +43,9 @@ export function ReminderBanner() {
               return (
                 <li key={task.id} className="flex items-center gap-2">
                   <Link
-                    to="/"
+                    to={`/#task-${task.id}`}
                     className="text-xs text-amber-700 dark:text-amber-400 flex-1 min-w-0 truncate hover:underline"
-                    title="Go to task"
+                    title="Go to task in To-Do list"
                   >
                     {task.title}
                     <span className="text-amber-500 dark:text-amber-500 ml-1">— {label}</span>

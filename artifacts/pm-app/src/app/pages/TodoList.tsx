@@ -93,6 +93,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   return (
     <>
       <div
+        id={`task-${task.id}`}
         className="flex items-start gap-3 px-4 py-3 border-b border-border hover:bg-accent/20 transition-colors group"
         data-testid={`task-row-${task.id}`}
       >

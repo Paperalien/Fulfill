@@ -75,9 +75,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
       const mapped = prev.map((t) => (t.id === id ? updated : t));
 
-      // Recurrence: spawn next occurrence only when transitioning INTO a done column FROM a non-done column
+      // Recurrence: spawn next occurrence only when transitioning INTO a done column FROM a non-done column.
+      // Use updated.recurrence (post-save state) so clearing recurrence in the same save suppresses spawn.
       if (
-        task.recurrence &&
+        updated.recurrence &&
         updates.columnId &&
         updates.columnId !== task.columnId
       ) {
