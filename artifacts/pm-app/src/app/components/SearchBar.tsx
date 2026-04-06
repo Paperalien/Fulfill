@@ -21,7 +21,7 @@ const DATE_OPERATORS: { value: DateOperator; label: string }[] = [
 
 const FIELD_OPTIONS: { value: SearchField; label: string }[] = [
   { value: 'title', label: 'Title' },
-  { value: 'description', label: 'Description' },
+  { value: 'description', label: 'Notes' },
   { value: 'status', label: 'Status' },
   { value: 'tags', label: 'Tags' },
   { value: 'storyPoints', label: 'Story Points' },

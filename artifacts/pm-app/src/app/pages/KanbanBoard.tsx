@@ -50,9 +50,6 @@ function KanbanCard({ task, index, allTasks, columns }: { task: Task; index: num
             {task.description && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
             )}
-            {task.notes && (
-              <p className="text-xs text-muted-foreground/60 mt-1 line-clamp-1 font-mono italic">{task.notes}</p>
-            )}
             <div className="flex flex-wrap gap-1.5 mt-2">
               <InProgressBadge task={task} columns={columns} />
               {task.storyPoints !== undefined && (

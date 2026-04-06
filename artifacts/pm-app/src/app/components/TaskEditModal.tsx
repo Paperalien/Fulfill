@@ -17,7 +17,6 @@ export function TaskEditModal({ task, onClose }: Props) {
 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
-  const [notes, setNotes] = useState(task.notes ?? '');
   const [columnId, setColumnId] = useState(task.columnId);
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [dueDate, setDueDate] = useState(task.dueDate ?? '');
@@ -29,7 +28,6 @@ export function TaskEditModal({ task, onClose }: Props) {
     updateTask(task.id, {
       title,
       description,
-      notes: notes.trim() || undefined,
       columnId,
       storyPoints,
       dueDate: dueDate || undefined,
@@ -75,26 +73,15 @@ export function TaskEditModal({ task, onClose }: Props) {
             />
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Description</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            />
-          </div>
-
           {/* Notes */}
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
             <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               rows={5}
-              placeholder="Free-form notes, scratch space, context…"
-              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y font-mono text-xs leading-relaxed"
+              placeholder="Notes, context, details…"
+              className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
             />
           </div>
 

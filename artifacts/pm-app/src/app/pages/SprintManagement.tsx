@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Play, Square, Archive, ChevronDown, ChevronRight, Bell, RefreshCw, Pencil } from 'lucide-react';
+import { Plus, Trash2, Play, Square, Archive, Bell, RefreshCw, Pencil } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, Sprint, SearchState, SearchField, SortOrder } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
@@ -14,13 +14,7 @@ const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: '
 
 function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
   const { updateTask, columns } = useTaskContext();
-  const [notesOpen, setNotesOpen] = useState(false);
-  const [notes, setNotes] = useState(task.notes ?? '');
   const [showEdit, setShowEdit] = useState(false);
-
-  function saveNotes() {
-    updateTask(task.id, { notes: notes.trim() || undefined });
-  }
 
   return (
     <>
@@ -31,9 +25,6 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
           <p className="text-sm font-medium">{task.title}</p>
           {task.description && (
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
-          )}
-          {!notesOpen && task.notes && (
-            <p className="text-xs text-muted-foreground/60 mt-0.5 line-clamp-1 font-mono italic">{task.notes}</p>
           )}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <InProgressBadge task={task} columns={columns} />
@@ -68,19 +59,6 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
           >
             <Pencil size={13} />
           </button>
-          <button
-            onClick={() => { setNotesOpen((v) => !v); setNotes(task.notes ?? ''); }}
-            className={`text-xs flex items-center gap-0.5 px-1.5 py-0.5 rounded border transition-colors ${
-              notesOpen || task.notes
-                ? 'border-border text-foreground bg-accent/40'
-                : 'border-transparent text-muted-foreground opacity-0 group-hover:opacity-100 hover:border-border'
-            }`}
-            title="Toggle notes"
-            data-testid={`sprint-notes-toggle-${task.id}`}
-          >
-            {notesOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            Notes
-          </button>
           <select
             className="text-xs px-2 py-1 border border-border rounded bg-background focus:outline-none"
             value={task.sprintId ?? ''}
@@ -94,20 +72,6 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
           </select>
         </div>
       </div>
-      {notesOpen && (
-        <div className="px-4 pb-3 bg-muted/20">
-          <textarea
-            autoFocus
-            className="w-full px-3 py-2 text-xs border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y font-mono leading-relaxed min-h-[80px]"
-            placeholder="Free-form notes, scratch space, context…"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            onBlur={saveNotes}
-            data-testid={`sprint-notes-input-${task.id}`}
-          />
-          <p className="text-xs text-muted-foreground mt-1">Saved on blur · close with the Notes button</p>
-        </div>
-      )}
     </div>
     </>
   );

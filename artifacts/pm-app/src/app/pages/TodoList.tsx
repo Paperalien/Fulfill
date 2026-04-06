@@ -52,7 +52,6 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
 
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description);
-  const [notes, setNotes] = useState(task.notes ?? '');
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [dueDate, setDueDate] = useState(task.dueDate ?? '');
   const [tags, setTags] = useState(task.tags ?? []);
@@ -72,7 +71,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   };
 
   const handleSave = () => {
-    updateTask(task.id, { title, description, notes: notes.trim() || undefined, storyPoints, dueDate: dueDate || undefined, tags, reminder, recurrence });
+    updateTask(task.id, { title, description, storyPoints, dueDate: dueDate || undefined, tags, reminder, recurrence });
     setEditing(false);
   };
 
@@ -122,22 +121,15 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
                 onChange={(e) => setTitle(e.target.value)}
                 data-testid="edit-title-input"
               />
-              <textarea
-                className="w-full px-2 py-1 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                rows={2}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                data-testid="edit-description-input"
-              />
               <div>
                 <label className="text-xs text-muted-foreground mb-1 block">Notes</label>
                 <textarea
-                  className="w-full px-2 py-1 text-xs border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y font-mono leading-relaxed"
-                  rows={4}
-                  placeholder="Free-form notes, scratch space, context…"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  data-testid="edit-notes-input"
+                  className="w-full px-2 py-1 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+                  rows={3}
+                  placeholder="Notes, context, details…"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  data-testid="edit-description-input"
                 />
               </div>
               <div>
@@ -168,9 +160,6 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
               </p>
               {task.description && (
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
-              )}
-              {task.notes && (
-                <p className="text-xs text-muted-foreground/70 mt-0.5 line-clamp-1 font-mono italic">{task.notes}</p>
               )}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <InProgressBadge task={task} columns={columns} />
@@ -326,7 +315,7 @@ export default function TodoList() {
             />
             <textarea
               className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-              placeholder="Description (optional)"
+              placeholder="Notes (optional)"
               rows={2}
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}

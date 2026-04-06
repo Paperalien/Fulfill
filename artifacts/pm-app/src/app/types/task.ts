@@ -25,7 +25,6 @@ export interface Task {
   parentId?: string;          // Single parent task (subtask tree)
   predecessorIds?: string[];  // Tasks that must complete before this one
   tags?: string[];            // Many-to-many labels
-  notes?: string;             // Unstructured free text, unversioned
   reminder?: string;          // 'day-before' | 'on-due-date' | 'YYYY-MM-DD' (specific date)
   reminderDismissedAt?: string; // YYYY-MM-DD — last date this reminder was dismissed
   recurrence?: 'daily' | 'weekly' | 'monthly';
