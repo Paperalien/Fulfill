@@ -27,14 +27,14 @@ export function getTasks(): Task[] {
   try {
     const raw = localStorage.getItem(TASKS_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as (Task & { description?: string })[];
+    const parsed = JSON.parse(raw) as Record<string, unknown>[];
     // Backwards-compat migration: rename stored `description` → `notes`
     return parsed.map((t) => {
       if ('description' in t && !('notes' in t)) {
         const { description, ...rest } = t;
         return { ...rest, notes: description ?? '' } as Task;
       }
-      return t as Task;
+      return t as unknown as Task;
     });
   } catch {
     return [];
