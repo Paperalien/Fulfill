@@ -4,6 +4,7 @@ import {
   LayoutGrid,
   Calendar,
   Dices,
+  BarChart2,
   Archive,
   Trash2,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { to: '/kanban', label: 'Kanban', icon: LayoutGrid },
   { to: '/sprints', label: 'Sprint', icon: Calendar },
   { to: '/planning-poker', label: 'Planning Poker', icon: Dices },
+  { to: '/charts', label: 'Charts', icon: BarChart2 },
   { to: '/done', label: 'Done', icon: Archive },
   { to: '/trash', label: 'Trash', icon: Trash2 },
 ];

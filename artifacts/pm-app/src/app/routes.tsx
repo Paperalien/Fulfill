@@ -6,6 +6,7 @@ import SprintManagement from './pages/SprintManagement';
 import PlanningPoker from './pages/PlanningPoker';
 import DoneFolder from './pages/DoneFolder';
 import TrashBin from './pages/TrashBin';
+import Charts from './pages/Charts';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
@@ -19,6 +20,7 @@ export const router = createBrowserRouter(
         { path: 'kanban', element: <KanbanBoard /> },
         { path: 'sprints', element: <SprintManagement /> },
         { path: 'planning-poker', element: <PlanningPoker /> },
+        { path: 'charts', element: <Charts /> },
         { path: 'done', element: <DoneFolder /> },
         { path: 'trash', element: <TrashBin /> },
       ],

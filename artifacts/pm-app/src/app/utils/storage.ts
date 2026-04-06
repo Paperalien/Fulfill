@@ -70,3 +70,61 @@ export function getColumns(): KanbanColumn[] {
 export function saveColumns(columns: KanbanColumn[]): void {
   localStorage.setItem(COLUMNS_KEY, JSON.stringify(columns));
 }
+
+// ── Daily sprint snapshots ──────────────────────────────────────────────────
+// Keyed by date (YYYY-MM-DD) → map of sprintId → { total, done }
+export interface SprintSnapshot {
+  total: number;
+  done: number;
+}
+
+export type SnapshotsByDate = Record<string, Record<string, SprintSnapshot>>;
+
+const SNAPSHOTS_KEY = 'pm-sprint-snapshots';
+
+export function getSprintSnapshots(): SnapshotsByDate {
+  try {
+    const raw = localStorage.getItem(SNAPSHOTS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+export function saveSprintSnapshots(snapshots: SnapshotsByDate): void {
+  localStorage.setItem(SNAPSHOTS_KEY, JSON.stringify(snapshots));
+}
+
+export function recordDailySnapshots(
+  sprints: Sprint[],
+  tasks: Task[],
+  doneColumnIds: string[]
+): void {
+  const today = new Date().toISOString().slice(0, 10);
+  const snapshots = getSprintSnapshots();
+
+  if (!snapshots[today]) {
+    snapshots[today] = {};
+  }
+
+  const doneSet = new Set(doneColumnIds);
+  let changed = false;
+
+  for (const sprint of sprints) {
+    // Only write once per day per sprint
+    if (snapshots[today][sprint.id]) continue;
+    const sprintTasks = tasks.filter(
+      (t) => t.sprintId === sprint.id && !t.deletedAt
+    );
+    const total = sprintTasks.reduce((s, t) => s + (t.storyPoints ?? 0), 0);
+    const done = sprintTasks
+      .filter((t) => doneSet.has(t.columnId) || !!t.archivedAt)
+      .reduce((s, t) => s + (t.storyPoints ?? 0), 0);
+    snapshots[today][sprint.id] = { total, done };
+    changed = true;
+  }
+
+  if (changed) {
+    saveSprintSnapshots(snapshots);
+  }
+}

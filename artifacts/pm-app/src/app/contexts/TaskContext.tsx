@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { Task, Sprint, KanbanColumn, SemanticStatus } from '../types/task';
 import {
   getTasks, saveTasks, getSprints, saveSprints,
-  getColumns, saveColumns, seedIfNeeded,
+  getColumns, saveColumns, seedIfNeeded, recordDailySnapshots,
 } from '../utils/storage';
 import { getSemanticStatus, computeNextDueDate } from '../utils/taskUtils';
 
@@ -41,6 +41,12 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   useEffect(() => { saveTasks(tasks); }, [tasks]);
   useEffect(() => { saveSprints(sprints); }, [sprints]);
   useEffect(() => { saveColumns(columns); }, [columns]);
+
+  // Record daily snapshots on app load (once per day per sprint)
+  useEffect(() => {
+    recordDailySnapshots(sprints, tasks, doneColumnIds());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function uid() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
