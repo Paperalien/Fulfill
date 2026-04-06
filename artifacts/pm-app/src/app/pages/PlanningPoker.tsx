@@ -48,10 +48,10 @@ export default function PlanningPoker() {
         <div className="space-y-6">
           <div className="p-4 border border-border rounded-xl bg-card">
             <h3 className="text-base font-semibold mb-1">{selectedTask.title}</h3>
-            {selectedTask.description ? (
-              <p className="text-sm text-muted-foreground">{selectedTask.description}</p>
+            {selectedTask.notes ? (
+              <p className="text-sm text-muted-foreground">{selectedTask.notes}</p>
             ) : (
-              <p className="text-sm text-muted-foreground italic">No description provided.</p>
+              <p className="text-sm text-muted-foreground italic">No notes provided.</p>
             )}
             <div className="mt-3 flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Current estimate:</span>

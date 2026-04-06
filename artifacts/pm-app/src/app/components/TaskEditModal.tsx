@@ -16,7 +16,7 @@ export function TaskEditModal({ task, onClose }: Props) {
   const sortedColumns = [...columns].sort((a, b) => a.order - b.order);
 
   const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description);
+  const [notes, setNotes] = useState(task.notes);
   const [columnId, setColumnId] = useState(task.columnId);
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [dueDate, setDueDate] = useState(task.dueDate ?? '');
@@ -27,7 +27,7 @@ export function TaskEditModal({ task, onClose }: Props) {
   function handleSave() {
     updateTask(task.id, {
       title,
-      description,
+      notes,
       columnId,
       storyPoints,
       dueDate: dueDate || undefined,
@@ -77,8 +77,8 @@ export function TaskEditModal({ task, onClose }: Props) {
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
               rows={5}
               placeholder="Notes, context, details…"
               className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"

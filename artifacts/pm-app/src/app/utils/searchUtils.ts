@@ -33,8 +33,8 @@ export function filterTasks(
     switch (field) {
       case 'title':
         return task.title.toLowerCase().includes(value.toLowerCase());
-      case 'description':
-        return task.description.toLowerCase().includes(value.toLowerCase());
+      case 'notes':
+        return task.notes.toLowerCase().includes(value.toLowerCase());
       case 'status': {
         const sem = getSemanticStatus(task, columns);
         // Allow matching semantic status or column name

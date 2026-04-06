@@ -26,7 +26,16 @@ export function resetToSeed(): void {
 export function getTasks(): Task[] {
   try {
     const raw = localStorage.getItem(TASKS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as (Task & { description?: string })[];
+    // Backwards-compat migration: rename stored `description` → `notes`
+    return parsed.map((t) => {
+      if ('description' in t && !('notes' in t)) {
+        const { description, ...rest } = t;
+        return { ...rest, notes: description ?? '' } as Task;
+      }
+      return t as Task;
+    });
   } catch {
     return [];
   }

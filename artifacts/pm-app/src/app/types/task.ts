@@ -11,7 +11,7 @@ export interface KanbanColumn {
 export interface Task {
   id: string;
   title: string;
-  description: string;
+  notes: string;
   columnId: string;           // Which kanban column this task is in
   storyPoints?: number;       // Fibonacci: 1, 2, 3, 5, 8, 13, 21
   createdAt: string;          // ISO timestamp
@@ -40,7 +40,7 @@ export interface Sprint {
 
 export type SearchField =
   | 'title'
-  | 'description'
+  | 'notes'
   | 'status'
   | 'storyPoints'
   | 'dueDate'

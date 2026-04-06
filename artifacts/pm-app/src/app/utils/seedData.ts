@@ -43,7 +43,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-1',
     title: 'Set up project scaffolding',
-    description: 'Initialize repository, configure build tools, set up CI/CD pipeline',
+    notes: 'Initialize repository, configure build tools, set up CI/CD pipeline',
     columnId: 'col-done',
     storyPoints: 3,
     createdAt: daysAgo(40),
@@ -58,7 +58,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-2',
     title: 'Design database schema',
-    description: 'Define all tables, relationships, and indexes for the core data model',
+    notes: 'Define all tables, relationships, and indexes for the core data model',
     columnId: 'col-done',
     storyPoints: 5,
     createdAt: daysAgo(39),
@@ -72,7 +72,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-3',
     title: 'Implement authentication',
-    description: 'OAuth2 login flow with JWT refresh tokens and session management',
+    notes: 'OAuth2 login flow with JWT refresh tokens and session management',
     columnId: 'col-done',
     storyPoints: 8,
     createdAt: daysAgo(38),
@@ -87,7 +87,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-4',
     title: 'Create REST API endpoints',
-    description: 'Build CRUD endpoints for tasks, sprints, and user profiles',
+    notes: 'Build CRUD endpoints for tasks, sprints, and user profiles',
     columnId: 'col-done',
     storyPoints: 13,
     createdAt: daysAgo(37),
@@ -104,7 +104,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-5',
     title: 'Build kanban board UI',
-    description: 'Drag-and-drop columns with real-time status updates and card reordering',
+    notes: 'Drag-and-drop columns with real-time status updates and card reordering',
     columnId: 'col-in-progress',
     storyPoints: 8,
     createdAt: daysAgo(13),
@@ -118,7 +118,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-5a',
     title: 'Column drag-and-drop',
-    description: 'Implement draggable cards between columns using hello-pangea/dnd',
+    notes: 'Implement draggable cards between columns using hello-pangea/dnd',
     columnId: 'col-done',
     storyPoints: 3,
     createdAt: daysAgo(12),
@@ -133,7 +133,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-5b',
     title: 'Add column management UI',
-    description: 'Settings panel to add, rename, reorder and delete columns',
+    notes: 'Settings panel to add, rename, reorder and delete columns',
     columnId: 'col-in-progress',
     storyPoints: 2,
     createdAt: daysAgo(12),
@@ -147,7 +147,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-6',
     title: 'Implement planning poker',
-    description: 'Fibonacci voting system for story point estimation with reveal mechanic',
+    notes: 'Fibonacci voting system for story point estimation with reveal mechanic',
     columnId: 'col-in-review',
     storyPoints: 5,
     createdAt: daysAgo(12),
@@ -160,7 +160,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-7',
     title: 'Add sprint management',
-    description: 'Create, edit, and activate sprints; assign tasks to sprints from backlog',
+    notes: 'Create, edit, and activate sprints; assign tasks to sprints from backlog',
     columnId: 'col-todo',
     storyPoints: 5,
     createdAt: daysAgo(11),
@@ -173,7 +173,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-8',
     title: 'Multi-field search and filtering',
-    description: 'Search by title, description, status, story points, and dates with operators',
+    notes: 'Search by title, description, status, story points, and dates with operators',
     columnId: 'col-todo',
     createdAt: daysAgo(10),
     updatedAt: daysAgo(10),
@@ -184,7 +184,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-9',
     title: 'Done folder and trash bin',
-    description: 'Archive completed tasks and soft-delete with 30-day retention period',
+    notes: 'Archive completed tasks and soft-delete with 30-day retention period',
     columnId: 'col-done',
     storyPoints: 3,
     createdAt: daysAgo(10),
@@ -198,7 +198,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-10',
     title: 'Keyboard shortcuts',
-    description: 'Implement / and Cmd-F for search focus, Esc to clear',
+    notes: 'Implement / and Cmd-F for search focus, Esc to clear',
     columnId: 'col-todo',
     storyPoints: 2,
     createdAt: daysAgo(9),
@@ -212,7 +212,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-11',
     title: 'Mobile responsive design',
-    description: 'Optimize all views for tablet and mobile screen sizes',
+    notes: 'Optimize all views for tablet and mobile screen sizes',
     columnId: 'col-todo',
     storyPoints: 5,
     createdAt: daysAgo(7),
@@ -225,7 +225,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-12',
     title: 'Dark mode support',
-    description: 'Implement theme switching with system preference detection',
+    notes: 'Implement theme switching with system preference detection',
     columnId: 'col-todo',
     storyPoints: 3,
     createdAt: daysAgo(6),
@@ -237,7 +237,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-13',
     title: 'Export to CSV',
-    description: 'Allow users to export task lists and sprint reports as CSV files',
+    notes: 'Allow users to export task lists and sprint reports as CSV files',
     columnId: 'col-todo',
     storyPoints: 2,
     createdAt: daysAgo(5),
@@ -253,7 +253,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-14',
     title: 'Email notification system',
-    description: 'Send digest emails for sprint summaries and overdue task reminders',
+    notes: 'Send digest emails for sprint summaries and overdue task reminders',
     columnId: 'col-todo',
     storyPoints: 13,
     createdAt: daysAgo(20),
@@ -264,7 +264,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-15',
     title: 'Slack integration',
-    description: 'Post notifications to Slack channels when tasks move to done or get assigned',
+    notes: 'Post notifications to Slack channels when tasks move to done or get assigned',
     columnId: 'col-todo',
     createdAt: daysAgo(18),
     updatedAt: daysAgo(18),
@@ -275,7 +275,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-16',
     title: 'Analytics dashboard',
-    description: 'Velocity charts, burndown graphs, and team performance metrics',
+    notes: 'Velocity charts, burndown graphs, and team performance metrics',
     columnId: 'col-todo',
     storyPoints: 21,
     createdAt: daysAgo(15),
@@ -289,7 +289,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-17',
     title: 'Old API v1 documentation',
-    description: 'Documentation for the deprecated v1 API endpoints – no longer needed',
+    notes: 'Documentation for the deprecated v1 API endpoints – no longer needed',
     columnId: 'col-todo',
     createdAt: daysAgo(30),
     updatedAt: daysAgo(5),
@@ -300,7 +300,7 @@ export const SEED_TASKS: Task[] = [
   {
     id: 'task-18',
     title: 'Duplicate: Setup CI pipeline',
-    description: 'This was a duplicate of task-1 and was removed',
+    notes: 'This was a duplicate of task-1 and was removed',
     columnId: 'col-todo',
     storyPoints: 1,
     createdAt: daysAgo(35),

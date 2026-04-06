@@ -71,8 +71,8 @@ export default function TrashBin() {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-muted-foreground line-through">{task.title}</p>
-                  {task.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+                  {task.notes && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.notes}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     {task.storyPoints && (

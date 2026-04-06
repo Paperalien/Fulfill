@@ -58,8 +58,8 @@ export default function DoneFolder() {
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium line-through text-muted-foreground">{task.title}</p>
-                  {task.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+                  {task.notes && (
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.notes}</p>
                   )}
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                     <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{colName}</span>

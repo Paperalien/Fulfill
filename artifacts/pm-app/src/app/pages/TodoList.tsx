@@ -51,7 +51,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   const [subtaskTitle, setSubtaskTitle] = useState('');
 
   const [title, setTitle] = useState(task.title);
-  const [description, setDescription] = useState(task.description);
+  const [notes, setNotes] = useState(task.notes);
   const [storyPoints, setStoryPoints] = useState(task.storyPoints);
   const [dueDate, setDueDate] = useState(task.dueDate ?? '');
   const [tags, setTags] = useState(task.tags ?? []);
@@ -71,7 +71,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   };
 
   const handleSave = () => {
-    updateTask(task.id, { title, description, storyPoints, dueDate: dueDate || undefined, tags, reminder, recurrence });
+    updateTask(task.id, { title, notes, storyPoints, dueDate: dueDate || undefined, tags, reminder, recurrence });
     setEditing(false);
   };
 
@@ -79,7 +79,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
     if (!subtaskTitle.trim()) return;
     addTask({
       title: subtaskTitle,
-      description: '',
+      notes: '',
       columnId: todoColId ?? 'col-todo',
       parentId: task.id,
       tags: [],
@@ -127,8 +127,8 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
                   className="w-full px-2 py-1 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
                   rows={3}
                   placeholder="Notes, context, details…"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
                   data-testid="edit-description-input"
                 />
               </div>
@@ -158,8 +158,8 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
               <p className={`text-sm font-medium ${isTaskDone ? 'line-through text-muted-foreground' : ''}`}>
                 {task.title}
               </p>
-              {task.description && (
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+              {task.notes && (
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.notes}</p>
               )}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 <InProgressBadge task={task} columns={columns} />
@@ -252,7 +252,7 @@ export default function TodoList() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
 
   const [newTitle, setNewTitle] = useState('');
-  const [newDesc, setNewDesc] = useState('');
+  const [newNotes, setNewNotes] = useState('');
   const [newPoints, setNewPoints] = useState<number | undefined>();
   const [newDue, setNewDue] = useState('');
   const [newTags, setNewTags] = useState<string[]>([]);
@@ -270,8 +270,8 @@ export default function TodoList() {
 
   const handleAdd = () => {
     if (!newTitle.trim()) return;
-    addTask({ title: newTitle, description: newDesc, columnId: todoColId, storyPoints: newPoints, dueDate: newDue || undefined, tags: newTags });
-    setNewTitle(''); setNewDesc(''); setNewPoints(undefined); setNewDue(''); setNewTags([]);
+    addTask({ title: newTitle, notes: newNotes, columnId: todoColId, storyPoints: newPoints, dueDate: newDue || undefined, tags: newTags });
+    setNewTitle(''); setNewNotes(''); setNewPoints(undefined); setNewDue(''); setNewTags([]);
     setShowAddForm(false);
   };
 
@@ -317,8 +317,8 @@ export default function TodoList() {
               className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               placeholder="Notes (optional)"
               rows={2}
-              value={newDesc}
-              onChange={(e) => setNewDesc(e.target.value)}
+              value={newNotes}
+              onChange={(e) => setNewNotes(e.target.value)}
               data-testid="new-task-description"
             />
             <div>

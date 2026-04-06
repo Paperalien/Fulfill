@@ -47,8 +47,8 @@ function KanbanCard({ task, index, allTasks, columns }: { task: Task; index: num
             </button>
 
             <p className="text-sm font-medium leading-tight pr-6">{task.title}</p>
-            {task.description && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+            {task.notes && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.notes}</p>
             )}
             <div className="flex flex-wrap gap-1.5 mt-2">
               <InProgressBadge task={task} columns={columns} />
@@ -237,7 +237,7 @@ export default function KanbanBoard() {
   const [sortOrder] = useState<'asc'>('asc');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addTitle, setAddTitle] = useState('');
-  const [addDesc, setAddDesc] = useState('');
+  const [addNotes, setAddNotes] = useState('');
   const [addColumnId, setAddColumnId] = useState('');
   const [showColumnManager, setShowColumnManager] = useState(false);
 
@@ -266,8 +266,8 @@ export default function KanbanBoard() {
   const handleAdd = () => {
     if (!addTitle.trim()) return;
     const targetColId = addColumnId || sortedColumns[0]?.id || 'col-todo';
-    addTask({ title: addTitle, description: addDesc, columnId: targetColId });
-    setAddTitle(''); setAddDesc(''); setAddColumnId('');
+    addTask({ title: addTitle, notes: addNotes, columnId: targetColId });
+    setAddTitle(''); setAddNotes(''); setAddColumnId('');
     setShowAddDialog(false);
   };
 
@@ -332,10 +332,10 @@ export default function KanbanBoard() {
               />
               <textarea
                 className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                placeholder="Description (optional)"
+                placeholder="Notes (optional)"
                 rows={2}
-                value={addDesc}
-                onChange={(e) => setAddDesc(e.target.value)}
+                value={addNotes}
+                onChange={(e) => setAddNotes(e.target.value)}
                 data-testid="kanban-add-description"
               />
               <select

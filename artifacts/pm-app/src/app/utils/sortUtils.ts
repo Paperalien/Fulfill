@@ -16,9 +16,9 @@ export function sortTasksByField(
         aVal = a.title.toLowerCase();
         bVal = b.title.toLowerCase();
         break;
-      case 'description':
-        aVal = a.description.toLowerCase();
-        bVal = b.description.toLowerCase();
+      case 'notes':
+        aVal = a.notes.toLowerCase();
+        bVal = b.notes.toLowerCase();
         break;
       case 'status': {
         const semOrder = ['not-started', 'in-progress', 'done'];
@@ -60,7 +60,7 @@ export function sortTasksByField(
 export function getSortLabel(field: SearchField, order: SortOrder): string {
   switch (field) {
     case 'title':
-    case 'description':
+    case 'notes':
       return order === 'asc' ? 'A→Z' : 'Z→A';
     case 'status':
       return order === 'asc' ? 'Not Started→Done' : 'Done→Not Started';
@@ -79,7 +79,7 @@ export function getSortLabel(field: SearchField, order: SortOrder): string {
 
 export const SORT_FIELD_LABELS: Record<SearchField, string> = {
   title: 'Title',
-  description: 'Description',
+  notes: 'Notes',
   status: 'Status',
   storyPoints: 'Story Points',
   dueDate: 'Due Date',

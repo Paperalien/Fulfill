@@ -23,8 +23,8 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
       <div className="flex items-start gap-3 px-4 py-3 hover:bg-accent/20 transition-colors group">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>
+          {task.notes && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.notes}</p>
           )}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <InProgressBadge task={task} columns={columns} />
@@ -91,7 +91,7 @@ export default function SprintManagement() {
 
   const [showAddTask, setShowAddTask] = useState<string | null>(null);
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskDesc, setNewTaskDesc] = useState('');
+  const [newTaskNotes, setNewTaskNotes] = useState('');
 
   const todoColId = columns.find((c) => c.semanticStatus === 'not-started')?.id ?? columns[0]?.id ?? 'col-todo';
   const activeSprint = sprints.find((s) => s.isActive);
@@ -135,8 +135,8 @@ export default function SprintManagement() {
 
   const handleAddTask = (sprintId: string | null) => {
     if (!newTaskTitle.trim()) return;
-    addTask({ title: newTaskTitle, description: newTaskDesc, columnId: todoColId, sprintId: sprintId ?? undefined });
-    setNewTaskTitle(''); setNewTaskDesc('');
+    addTask({ title: newTaskTitle, notes: newTaskNotes, columnId: todoColId, sprintId: sprintId ?? undefined });
+    setNewTaskTitle(''); setNewTaskNotes('');
     setShowAddTask(null);
   };
 
@@ -269,7 +269,7 @@ export default function SprintManagement() {
           {showAddTask === 'active' && (
             <div className="mb-3 p-3 border border-border rounded-lg bg-card flex flex-col gap-2">
               <input autoFocus className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none" placeholder="Task title" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} data-testid="sprint-new-task-title" />
-              <textarea className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none resize-none" placeholder="Description (optional)" rows={1} value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} />
+              <textarea className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none resize-none" placeholder="Notes (optional)" rows={1} value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} />
               <div className="flex gap-2">
                 <button onClick={() => handleAddTask(activeSprint.id)} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90">Add</button>
                 <button onClick={() => setShowAddTask(null)} className="px-3 py-1 text-xs border border-border rounded hover:bg-accent">Cancel</button>
@@ -300,7 +300,7 @@ export default function SprintManagement() {
         {showAddTask === 'backlog' && (
           <div className="mb-3 p-3 border border-border rounded-lg bg-card flex flex-col gap-2">
             <input autoFocus className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none" placeholder="Task title" value={newTaskTitle} onChange={(e) => setNewTaskTitle(e.target.value)} data-testid="backlog-new-task-title" />
-            <textarea className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none resize-none" placeholder="Description" rows={1} value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} />
+            <textarea className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none resize-none" placeholder="Notes (optional)" rows={1} value={newTaskNotes} onChange={(e) => setNewTaskNotes(e.target.value)} />
             <div className="flex gap-2">
               <button onClick={() => handleAddTask(null)} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90">Add</button>
               <button onClick={() => setShowAddTask(null)} className="px-3 py-1 text-xs border border-border rounded hover:bg-accent">Cancel</button>
