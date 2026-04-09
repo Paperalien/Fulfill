@@ -10,6 +10,16 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: workspaces
+    description: Workspace operations
+  - name: columns
+    description: Column operations
+  - name: sprints
+    description: Sprint operations
+  - name: tasks
+    description: Task operations
+  - name: sprint-snapshots
+    description: Sprint snapshot operations
 paths:
   /healthz:
     get:
@@ -24,7 +34,406 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /workspaces/ensure-personal:
+    post:
+      operationId: ensurePersonalWorkspace
+      tags: [workspaces]
+      summary: Ensure personal workspace exists
+      description: Creates a personal workspace for the authenticated user if one does not already exist, then returns it.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Personal workspace retrieved or created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Workspace"
+
+  /workspaces/{workspaceId}/columns:
+    get:
+      operationId: getColumns
+      tags: [columns]
+      summary: List columns
+      description: Returns all columns for the given workspace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      responses:
+        "200":
+          description: List of columns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Column"
+    post:
+      operationId: createColumn
+      tags: [columns]
+      summary: Create a column
+      description: Creates a new column in the given workspace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateColumnRequest"
+      responses:
+        "201":
+          description: Column created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Column"
+
+  /workspaces/{workspaceId}/columns/{columnId}:
+    patch:
+      operationId: updateColumn
+      tags: [columns]
+      summary: Update a column
+      description: Updates an existing column.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/columnId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateColumnRequest"
+      responses:
+        "200":
+          description: Column updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Column"
+    delete:
+      operationId: deleteColumn
+      tags: [columns]
+      summary: Delete a column
+      description: Deletes a column and reassigns its tasks to another column.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/columnId"
+        - name: reassignToId
+          in: query
+          required: true
+          description: The column ID to reassign tasks to before deleting this column.
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Column deleted
+
+  /workspaces/{workspaceId}/columns/reorder:
+    post:
+      operationId: reorderColumns
+      tags: [columns]
+      summary: Reorder columns
+      description: Updates the order of all columns in the workspace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReorderColumnsRequest"
+      responses:
+        "200":
+          description: Columns reordered
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Column"
+
+  /workspaces/{workspaceId}/sprints:
+    get:
+      operationId: getSprints
+      tags: [sprints]
+      summary: List sprints
+      description: Returns all sprints for the given workspace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      responses:
+        "200":
+          description: List of sprints
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sprint"
+    post:
+      operationId: createSprint
+      tags: [sprints]
+      summary: Create a sprint
+      description: Creates a new sprint in the given workspace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSprintRequest"
+      responses:
+        "201":
+          description: Sprint created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sprint"
+
+  /workspaces/{workspaceId}/sprints/{sprintId}:
+    patch:
+      operationId: updateSprint
+      tags: [sprints]
+      summary: Update a sprint
+      description: Updates an existing sprint.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/sprintId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSprintRequest"
+      responses:
+        "200":
+          description: Sprint updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sprint"
+    delete:
+      operationId: deleteSprint
+      tags: [sprints]
+      summary: Delete a sprint
+      description: Deletes an existing sprint.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/sprintId"
+      responses:
+        "204":
+          description: Sprint deleted
+
+  /workspaces/{workspaceId}/tasks:
+    get:
+      operationId: getTasks
+      tags: [tasks]
+      summary: List tasks
+      description: Returns all tasks for the given workspace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      responses:
+        "200":
+          description: List of tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      description: Creates a new task in the given workspace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /workspaces/{workspaceId}/tasks/{taskId}:
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update a task
+      description: Updates an existing task. May spawn a new recurrence task if the task has a recurrence rule and is being completed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/taskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskRequest"
+      responses:
+        "200":
+          description: Task updated, with optional spawned recurrence task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskUpdateResponse"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      description: Soft-deletes a task by setting its deletedAt timestamp.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/taskId"
+      responses:
+        "204":
+          description: Task deleted
+
+  /workspaces/{workspaceId}/tasks/bulk-archive:
+    patch:
+      operationId: bulkArchiveTasks
+      tags: [tasks]
+      summary: Bulk archive tasks
+      description: Archives multiple tasks by setting their archivedAt timestamp.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BulkArchiveRequest"
+      responses:
+        "200":
+          description: Tasks archived
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+
+  /workspaces/{workspaceId}/sprint-snapshots:
+    get:
+      operationId: getSprintSnapshots
+      tags: [sprint-snapshots]
+      summary: List sprint snapshots
+      description: Returns sprint snapshots for the given workspace, optionally filtered by sprint.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+        - name: sprintId
+          in: query
+          required: false
+          description: Filter snapshots by sprint ID.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of sprint snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SprintSnapshot"
+    post:
+      operationId: upsertSprintSnapshot
+      tags: [sprint-snapshots]
+      summary: Upsert a sprint snapshot
+      description: Creates or updates a sprint snapshot. Unique on sprintId + date.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSprintSnapshotRequest"
+      responses:
+        "200":
+          description: Sprint snapshot upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SprintSnapshot"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    workspaceId:
+      name: workspaceId
+      in: path
+      required: true
+      description: The workspace ID.
+      schema:
+        type: string
+    columnId:
+      name: columnId
+      in: path
+      required: true
+      description: The column ID.
+      schema:
+        type: string
+    sprintId:
+      name: sprintId
+      in: path
+      required: true
+      description: The sprint ID.
+      schema:
+        type: string
+    taskId:
+      name: taskId
+      in: path
+      required: true
+      description: The task ID.
+      schema:
+        type: string
+
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +443,441 @@ components:
       required:
         - status
 
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        ownerId:
+          type: string
+        createdAt:
+          type: string
+          description: ISO datetime
+      required:
+        - id
+        - name
+        - ownerId
+        - createdAt
+
+    Column:
+      type: object
+      properties:
+        id:
+          type: string
+        workspaceId:
+          type: string
+        name:
+          type: string
+        order:
+          type: integer
+        semanticStatus:
+          type: string
+          enum:
+            - not-started
+            - in-progress
+            - done
+        color:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          description: ISO datetime
+        updatedAt:
+          type: string
+          description: ISO datetime
+      required:
+        - id
+        - workspaceId
+        - name
+        - order
+        - semanticStatus
+        - color
+        - createdAt
+        - updatedAt
+
+    CreateColumnRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        order:
+          type: integer
+        semanticStatus:
+          type: string
+          enum:
+            - not-started
+            - in-progress
+            - done
+        color:
+          type: string
+          nullable: true
+      required:
+        - name
+        - order
+        - semanticStatus
+
+    UpdateColumnRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        order:
+          type: integer
+        semanticStatus:
+          type: string
+          enum:
+            - not-started
+            - in-progress
+            - done
+        color:
+          type: string
+          nullable: true
+
+    ReorderColumnsRequest:
+      type: object
+      properties:
+        columnIds:
+          type: array
+          items:
+            type: string
+          description: Ordered list of column IDs representing the new order.
+      required:
+        - columnIds
+
+    Sprint:
+      type: object
+      properties:
+        id:
+          type: string
+        workspaceId:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: string
+          description: YYYY-MM-DD
+        endDate:
+          type: string
+          description: YYYY-MM-DD
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          description: ISO datetime
+        updatedAt:
+          type: string
+          description: ISO datetime
+      required:
+        - id
+        - workspaceId
+        - name
+        - startDate
+        - endDate
+        - isActive
+        - createdAt
+        - updatedAt
+
+    CreateSprintRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          description: YYYY-MM-DD
+        endDate:
+          type: string
+          description: YYYY-MM-DD
+        isActive:
+          type: boolean
+      required:
+        - name
+        - startDate
+        - endDate
+
+    UpdateSprintRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        startDate:
+          type: string
+          description: YYYY-MM-DD
+        endDate:
+          type: string
+          description: YYYY-MM-DD
+        isActive:
+          type: boolean
+
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+        workspaceId:
+          type: string
+        title:
+          type: string
+        notes:
+          type: string
+          default: ""
+        columnId:
+          type: string
+        sprintId:
+          type: string
+          nullable: true
+        storyPoints:
+          type: integer
+          nullable: true
+        order:
+          type: integer
+        dueDate:
+          type: string
+          nullable: true
+          description: YYYY-MM-DD
+        inProgressAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        archivedAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        deletedAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        parentId:
+          type: string
+          nullable: true
+        predecessorIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        reminder:
+          type: string
+          nullable: true
+        reminderDismissedAt:
+          type: string
+          nullable: true
+        recurrence:
+          type: string
+          nullable: true
+          enum:
+            - daily
+            - weekly
+            - monthly
+        createdAt:
+          type: string
+          description: ISO datetime
+        updatedAt:
+          type: string
+          description: ISO datetime
+      required:
+        - id
+        - workspaceId
+        - title
+        - notes
+        - columnId
+        - sprintId
+        - storyPoints
+        - order
+        - dueDate
+        - inProgressAt
+        - archivedAt
+        - deletedAt
+        - parentId
+        - predecessorIds
+        - tags
+        - reminder
+        - reminderDismissedAt
+        - recurrence
+        - createdAt
+        - updatedAt
+
+    CreateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        notes:
+          type: string
+          default: ""
+        columnId:
+          type: string
+        sprintId:
+          type: string
+          nullable: true
+        storyPoints:
+          type: integer
+          nullable: true
+        order:
+          type: integer
+        dueDate:
+          type: string
+          nullable: true
+          description: YYYY-MM-DD
+        parentId:
+          type: string
+          nullable: true
+        predecessorIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        reminder:
+          type: string
+          nullable: true
+        recurrence:
+          type: string
+          nullable: true
+          enum:
+            - daily
+            - weekly
+            - monthly
+      required:
+        - title
+        - columnId
+        - order
+
+    UpdateTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        notes:
+          type: string
+        columnId:
+          type: string
+        sprintId:
+          type: string
+          nullable: true
+        storyPoints:
+          type: integer
+          nullable: true
+        order:
+          type: integer
+        dueDate:
+          type: string
+          nullable: true
+          description: YYYY-MM-DD
+        inProgressAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        archivedAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        deletedAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        parentId:
+          type: string
+          nullable: true
+        predecessorIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        reminder:
+          type: string
+          nullable: true
+        reminderDismissedAt:
+          type: string
+          nullable: true
+        recurrence:
+          type: string
+          nullable: true
+          enum:
+            - daily
+            - weekly
+            - monthly
+
+    TaskUpdateResponse:
+      type: object
+      properties:
+        updated:
+          $ref: "#/components/schemas/Task"
+        spawned:
+          oneOf:
+            - $ref: "#/components/schemas/Task"
+            - type: "null"
+      required:
+        - updated
+        - spawned
+
+    BulkArchiveRequest:
+      type: object
+      properties:
+        taskIds:
+          type: array
+          items:
+            type: string
+      required:
+        - taskIds
+
+    SprintSnapshot:
+      type: object
+      properties:
+        id:
+          type: string
+        workspaceId:
+          type: string
+        sprintId:
+          type: string
+        date:
+          type: string
+          description: YYYY-MM-DD
+        total:
+          type: integer
+        done:
+          type: integer
+        createdAt:
+          type: string
+          description: ISO datetime
+      required:
+        - id
+        - workspaceId
+        - sprintId
+        - date
+        - total
+        - done
+        - createdAt
+
+    CreateSprintSnapshotRequest:
+      type: object
+      properties:
+        sprintId:
+          type: string
+        date:
+          type: string
+          description: YYYY-MM-DD
+        total:
+          type: integer
+        done:
+          type: integer
+      required:
+        - sprintId
+        - date
+        - total
+        - done

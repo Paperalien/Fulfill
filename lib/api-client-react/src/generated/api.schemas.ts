@@ -8,3 +8,244 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface Workspace {
+  id: string;
+  name: string;
+  ownerId: string;
+  /** ISO datetime */
+  createdAt: string;
+}
+
+export type ColumnSemanticStatus =
+  (typeof ColumnSemanticStatus)[keyof typeof ColumnSemanticStatus];
+
+export const ColumnSemanticStatus = {
+  "not-started": "not-started",
+  "in-progress": "in-progress",
+  done: "done",
+} as const;
+
+export interface Column {
+  id: string;
+  workspaceId: string;
+  name: string;
+  order: number;
+  semanticStatus: ColumnSemanticStatus;
+  color: string | null;
+  /** ISO datetime */
+  createdAt: string;
+  /** ISO datetime */
+  updatedAt: string;
+}
+
+export type CreateColumnRequestSemanticStatus =
+  (typeof CreateColumnRequestSemanticStatus)[keyof typeof CreateColumnRequestSemanticStatus];
+
+export const CreateColumnRequestSemanticStatus = {
+  "not-started": "not-started",
+  "in-progress": "in-progress",
+  done: "done",
+} as const;
+
+export interface CreateColumnRequest {
+  name: string;
+  order: number;
+  semanticStatus: CreateColumnRequestSemanticStatus;
+  color?: string | null;
+}
+
+export type UpdateColumnRequestSemanticStatus =
+  (typeof UpdateColumnRequestSemanticStatus)[keyof typeof UpdateColumnRequestSemanticStatus];
+
+export const UpdateColumnRequestSemanticStatus = {
+  "not-started": "not-started",
+  "in-progress": "in-progress",
+  done: "done",
+} as const;
+
+export interface UpdateColumnRequest {
+  name?: string;
+  order?: number;
+  semanticStatus?: UpdateColumnRequestSemanticStatus;
+  color?: string | null;
+}
+
+export interface ReorderColumnsRequest {
+  /** Ordered list of column IDs representing the new order. */
+  columnIds: string[];
+}
+
+export interface Sprint {
+  id: string;
+  workspaceId: string;
+  name: string;
+  /** YYYY-MM-DD */
+  startDate: string;
+  /** YYYY-MM-DD */
+  endDate: string;
+  isActive: boolean;
+  /** ISO datetime */
+  createdAt: string;
+  /** ISO datetime */
+  updatedAt: string;
+}
+
+export interface CreateSprintRequest {
+  name: string;
+  /** YYYY-MM-DD */
+  startDate: string;
+  /** YYYY-MM-DD */
+  endDate: string;
+  isActive?: boolean;
+}
+
+export interface UpdateSprintRequest {
+  name?: string;
+  /** YYYY-MM-DD */
+  startDate?: string;
+  /** YYYY-MM-DD */
+  endDate?: string;
+  isActive?: boolean;
+}
+
+export type TaskRecurrence =
+  | (typeof TaskRecurrence)[keyof typeof TaskRecurrence]
+  | null;
+
+export const TaskRecurrence = {
+  daily: "daily",
+  weekly: "weekly",
+  monthly: "monthly",
+} as const;
+
+export interface Task {
+  id: string;
+  workspaceId: string;
+  title: string;
+  notes: string;
+  columnId: string;
+  sprintId: string | null;
+  storyPoints: number | null;
+  order: number;
+  /** YYYY-MM-DD */
+  dueDate: string | null;
+  /** ISO datetime */
+  inProgressAt: string | null;
+  /** ISO datetime */
+  archivedAt: string | null;
+  /** ISO datetime */
+  deletedAt: string | null;
+  parentId: string | null;
+  predecessorIds: string[] | null;
+  tags: string[] | null;
+  reminder: string | null;
+  reminderDismissedAt: string | null;
+  recurrence: TaskRecurrence;
+  /** ISO datetime */
+  createdAt: string;
+  /** ISO datetime */
+  updatedAt: string;
+}
+
+export type CreateTaskRequestRecurrence =
+  | (typeof CreateTaskRequestRecurrence)[keyof typeof CreateTaskRequestRecurrence]
+  | null;
+
+export const CreateTaskRequestRecurrence = {
+  daily: "daily",
+  weekly: "weekly",
+  monthly: "monthly",
+} as const;
+
+export interface CreateTaskRequest {
+  title: string;
+  notes?: string;
+  columnId: string;
+  sprintId?: string | null;
+  storyPoints?: number | null;
+  order: number;
+  /** YYYY-MM-DD */
+  dueDate?: string | null;
+  parentId?: string | null;
+  predecessorIds?: string[] | null;
+  tags?: string[] | null;
+  reminder?: string | null;
+  recurrence?: CreateTaskRequestRecurrence;
+}
+
+export type UpdateTaskRequestRecurrence =
+  | (typeof UpdateTaskRequestRecurrence)[keyof typeof UpdateTaskRequestRecurrence]
+  | null;
+
+export const UpdateTaskRequestRecurrence = {
+  daily: "daily",
+  weekly: "weekly",
+  monthly: "monthly",
+} as const;
+
+export interface UpdateTaskRequest {
+  title?: string;
+  notes?: string;
+  columnId?: string;
+  sprintId?: string | null;
+  storyPoints?: number | null;
+  order?: number;
+  /** YYYY-MM-DD */
+  dueDate?: string | null;
+  /** ISO datetime */
+  inProgressAt?: string | null;
+  /** ISO datetime */
+  archivedAt?: string | null;
+  /** ISO datetime */
+  deletedAt?: string | null;
+  parentId?: string | null;
+  predecessorIds?: string[] | null;
+  tags?: string[] | null;
+  reminder?: string | null;
+  reminderDismissedAt?: string | null;
+  recurrence?: UpdateTaskRequestRecurrence;
+}
+
+export interface TaskUpdateResponse {
+  updated: Task;
+  spawned: Task | null;
+}
+
+export interface BulkArchiveRequest {
+  taskIds: string[];
+}
+
+export interface SprintSnapshot {
+  id: string;
+  workspaceId: string;
+  sprintId: string;
+  /** YYYY-MM-DD */
+  date: string;
+  total: number;
+  done: number;
+  /** ISO datetime */
+  createdAt: string;
+}
+
+export interface CreateSprintSnapshotRequest {
+  sprintId: string;
+  /** YYYY-MM-DD */
+  date: string;
+  total: number;
+  done: number;
+}
+
+export type DeleteColumnParams = {
+  /**
+   * The column ID to reassign tasks to before deleting this column.
+   */
+  reassignToId: string;
+};
+
+export type GetSprintSnapshotsParams = {
+  /**
+   * Filter snapshots by sprint ID.
+   */
+  sprintId?: string;
+};

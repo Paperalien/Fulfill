@@ -14,3 +14,430 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * Creates a personal workspace for the authenticated user if one does not already exist, then returns it.
+ * @summary Ensure personal workspace exists
+ */
+export const EnsurePersonalWorkspaceResponse = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  ownerId: zod.string(),
+  createdAt: zod.string().describe("ISO datetime"),
+});
+
+/**
+ * Returns all columns for the given workspace.
+ * @summary List columns
+ */
+export const GetColumnsParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const GetColumnsResponseItem = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  name: zod.string(),
+  order: zod.number(),
+  semanticStatus: zod.enum(["not-started", "in-progress", "done"]),
+  color: zod.string().nullable(),
+  createdAt: zod.string().describe("ISO datetime"),
+  updatedAt: zod.string().describe("ISO datetime"),
+});
+export const GetColumnsResponse = zod.array(GetColumnsResponseItem);
+
+/**
+ * Creates a new column in the given workspace.
+ * @summary Create a column
+ */
+export const CreateColumnParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const CreateColumnBody = zod.object({
+  name: zod.string(),
+  order: zod.number(),
+  semanticStatus: zod.enum(["not-started", "in-progress", "done"]),
+  color: zod.string().nullish(),
+});
+
+/**
+ * Updates an existing column.
+ * @summary Update a column
+ */
+export const UpdateColumnParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+  columnId: zod.coerce.string().describe("The column ID."),
+});
+
+export const UpdateColumnBody = zod.object({
+  name: zod.string().optional(),
+  order: zod.number().optional(),
+  semanticStatus: zod.enum(["not-started", "in-progress", "done"]).optional(),
+  color: zod.string().nullish(),
+});
+
+export const UpdateColumnResponse = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  name: zod.string(),
+  order: zod.number(),
+  semanticStatus: zod.enum(["not-started", "in-progress", "done"]),
+  color: zod.string().nullable(),
+  createdAt: zod.string().describe("ISO datetime"),
+  updatedAt: zod.string().describe("ISO datetime"),
+});
+
+/**
+ * Deletes a column and reassigns its tasks to another column.
+ * @summary Delete a column
+ */
+export const DeleteColumnParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+  columnId: zod.coerce.string().describe("The column ID."),
+});
+
+export const DeleteColumnQueryParams = zod.object({
+  reassignToId: zod.coerce
+    .string()
+    .describe(
+      "The column ID to reassign tasks to before deleting this column.",
+    ),
+});
+
+/**
+ * Updates the order of all columns in the workspace.
+ * @summary Reorder columns
+ */
+export const ReorderColumnsParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const ReorderColumnsBody = zod.object({
+  columnIds: zod
+    .array(zod.string())
+    .describe("Ordered list of column IDs representing the new order."),
+});
+
+export const ReorderColumnsResponseItem = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  name: zod.string(),
+  order: zod.number(),
+  semanticStatus: zod.enum(["not-started", "in-progress", "done"]),
+  color: zod.string().nullable(),
+  createdAt: zod.string().describe("ISO datetime"),
+  updatedAt: zod.string().describe("ISO datetime"),
+});
+export const ReorderColumnsResponse = zod.array(ReorderColumnsResponseItem);
+
+/**
+ * Returns all sprints for the given workspace.
+ * @summary List sprints
+ */
+export const GetSprintsParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const GetSprintsResponseItem = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  name: zod.string(),
+  startDate: zod.string().describe("YYYY-MM-DD"),
+  endDate: zod.string().describe("YYYY-MM-DD"),
+  isActive: zod.boolean(),
+  createdAt: zod.string().describe("ISO datetime"),
+  updatedAt: zod.string().describe("ISO datetime"),
+});
+export const GetSprintsResponse = zod.array(GetSprintsResponseItem);
+
+/**
+ * Creates a new sprint in the given workspace.
+ * @summary Create a sprint
+ */
+export const CreateSprintParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const CreateSprintBody = zod.object({
+  name: zod.string(),
+  startDate: zod.string().describe("YYYY-MM-DD"),
+  endDate: zod.string().describe("YYYY-MM-DD"),
+  isActive: zod.boolean().optional(),
+});
+
+/**
+ * Updates an existing sprint.
+ * @summary Update a sprint
+ */
+export const UpdateSprintParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+  sprintId: zod.coerce.string().describe("The sprint ID."),
+});
+
+export const UpdateSprintBody = zod.object({
+  name: zod.string().optional(),
+  startDate: zod.string().optional().describe("YYYY-MM-DD"),
+  endDate: zod.string().optional().describe("YYYY-MM-DD"),
+  isActive: zod.boolean().optional(),
+});
+
+export const UpdateSprintResponse = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  name: zod.string(),
+  startDate: zod.string().describe("YYYY-MM-DD"),
+  endDate: zod.string().describe("YYYY-MM-DD"),
+  isActive: zod.boolean(),
+  createdAt: zod.string().describe("ISO datetime"),
+  updatedAt: zod.string().describe("ISO datetime"),
+});
+
+/**
+ * Deletes an existing sprint.
+ * @summary Delete a sprint
+ */
+export const DeleteSprintParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+  sprintId: zod.coerce.string().describe("The sprint ID."),
+});
+
+/**
+ * Returns all tasks for the given workspace.
+ * @summary List tasks
+ */
+export const GetTasksParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const getTasksResponseNotesDefault = ``;
+
+export const GetTasksResponseItem = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  title: zod.string(),
+  notes: zod.string().default(getTasksResponseNotesDefault),
+  columnId: zod.string(),
+  sprintId: zod.string().nullable(),
+  storyPoints: zod.number().nullable(),
+  order: zod.number(),
+  dueDate: zod.string().nullable().describe("YYYY-MM-DD"),
+  inProgressAt: zod.string().nullable().describe("ISO datetime"),
+  archivedAt: zod.string().nullable().describe("ISO datetime"),
+  deletedAt: zod.string().nullable().describe("ISO datetime"),
+  parentId: zod.string().nullable(),
+  predecessorIds: zod.array(zod.string()).nullable(),
+  tags: zod.array(zod.string()).nullable(),
+  reminder: zod.string().nullable(),
+  reminderDismissedAt: zod.string().nullable(),
+  recurrence: zod.enum(["daily", "weekly", "monthly"]).nullable(),
+  createdAt: zod.string().describe("ISO datetime"),
+  updatedAt: zod.string().describe("ISO datetime"),
+});
+export const GetTasksResponse = zod.array(GetTasksResponseItem);
+
+/**
+ * Creates a new task in the given workspace.
+ * @summary Create a task
+ */
+export const CreateTaskParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const createTaskBodyNotesDefault = ``;
+
+export const CreateTaskBody = zod.object({
+  title: zod.string(),
+  notes: zod.string().default(createTaskBodyNotesDefault),
+  columnId: zod.string(),
+  sprintId: zod.string().nullish(),
+  storyPoints: zod.number().nullish(),
+  order: zod.number(),
+  dueDate: zod.string().nullish().describe("YYYY-MM-DD"),
+  parentId: zod.string().nullish(),
+  predecessorIds: zod.array(zod.string()).nullish(),
+  tags: zod.array(zod.string()).nullish(),
+  reminder: zod.string().nullish(),
+  recurrence: zod.enum(["daily", "weekly", "monthly"]).nullish(),
+});
+
+/**
+ * Updates an existing task. May spawn a new recurrence task if the task has a recurrence rule and is being completed.
+ * @summary Update a task
+ */
+export const UpdateTaskParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+  taskId: zod.coerce.string().describe("The task ID."),
+});
+
+export const UpdateTaskBody = zod.object({
+  title: zod.string().optional(),
+  notes: zod.string().optional(),
+  columnId: zod.string().optional(),
+  sprintId: zod.string().nullish(),
+  storyPoints: zod.number().nullish(),
+  order: zod.number().optional(),
+  dueDate: zod.string().nullish().describe("YYYY-MM-DD"),
+  inProgressAt: zod.string().nullish().describe("ISO datetime"),
+  archivedAt: zod.string().nullish().describe("ISO datetime"),
+  deletedAt: zod.string().nullish().describe("ISO datetime"),
+  parentId: zod.string().nullish(),
+  predecessorIds: zod.array(zod.string()).nullish(),
+  tags: zod.array(zod.string()).nullish(),
+  reminder: zod.string().nullish(),
+  reminderDismissedAt: zod.string().nullish(),
+  recurrence: zod.enum(["daily", "weekly", "monthly"]).nullish(),
+});
+
+export const updateTaskResponseUpdatedNotesDefault = ``;
+export const updateTaskResponseSpawnedOneNotesDefault = ``;
+
+export const UpdateTaskResponse = zod.object({
+  updated: zod.object({
+    id: zod.string(),
+    workspaceId: zod.string(),
+    title: zod.string(),
+    notes: zod.string().default(updateTaskResponseUpdatedNotesDefault),
+    columnId: zod.string(),
+    sprintId: zod.string().nullable(),
+    storyPoints: zod.number().nullable(),
+    order: zod.number(),
+    dueDate: zod.string().nullable().describe("YYYY-MM-DD"),
+    inProgressAt: zod.string().nullable().describe("ISO datetime"),
+    archivedAt: zod.string().nullable().describe("ISO datetime"),
+    deletedAt: zod.string().nullable().describe("ISO datetime"),
+    parentId: zod.string().nullable(),
+    predecessorIds: zod.array(zod.string()).nullable(),
+    tags: zod.array(zod.string()).nullable(),
+    reminder: zod.string().nullable(),
+    reminderDismissedAt: zod.string().nullable(),
+    recurrence: zod.enum(["daily", "weekly", "monthly"]).nullable(),
+    createdAt: zod.string().describe("ISO datetime"),
+    updatedAt: zod.string().describe("ISO datetime"),
+  }),
+  spawned: zod.union([
+    zod.object({
+      id: zod.string(),
+      workspaceId: zod.string(),
+      title: zod.string(),
+      notes: zod.string().default(updateTaskResponseSpawnedOneNotesDefault),
+      columnId: zod.string(),
+      sprintId: zod.string().nullable(),
+      storyPoints: zod.number().nullable(),
+      order: zod.number(),
+      dueDate: zod.string().nullable().describe("YYYY-MM-DD"),
+      inProgressAt: zod.string().nullable().describe("ISO datetime"),
+      archivedAt: zod.string().nullable().describe("ISO datetime"),
+      deletedAt: zod.string().nullable().describe("ISO datetime"),
+      parentId: zod.string().nullable(),
+      predecessorIds: zod.array(zod.string()).nullable(),
+      tags: zod.array(zod.string()).nullable(),
+      reminder: zod.string().nullable(),
+      reminderDismissedAt: zod.string().nullable(),
+      recurrence: zod.enum(["daily", "weekly", "monthly"]).nullable(),
+      createdAt: zod.string().describe("ISO datetime"),
+      updatedAt: zod.string().describe("ISO datetime"),
+    }),
+    zod.null(),
+  ]),
+});
+
+/**
+ * Soft-deletes a task by setting its deletedAt timestamp.
+ * @summary Delete a task
+ */
+export const DeleteTaskParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+  taskId: zod.coerce.string().describe("The task ID."),
+});
+
+/**
+ * Archives multiple tasks by setting their archivedAt timestamp.
+ * @summary Bulk archive tasks
+ */
+export const BulkArchiveTasksParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const BulkArchiveTasksBody = zod.object({
+  taskIds: zod.array(zod.string()),
+});
+
+export const bulkArchiveTasksResponseNotesDefault = ``;
+
+export const BulkArchiveTasksResponseItem = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  title: zod.string(),
+  notes: zod.string().default(bulkArchiveTasksResponseNotesDefault),
+  columnId: zod.string(),
+  sprintId: zod.string().nullable(),
+  storyPoints: zod.number().nullable(),
+  order: zod.number(),
+  dueDate: zod.string().nullable().describe("YYYY-MM-DD"),
+  inProgressAt: zod.string().nullable().describe("ISO datetime"),
+  archivedAt: zod.string().nullable().describe("ISO datetime"),
+  deletedAt: zod.string().nullable().describe("ISO datetime"),
+  parentId: zod.string().nullable(),
+  predecessorIds: zod.array(zod.string()).nullable(),
+  tags: zod.array(zod.string()).nullable(),
+  reminder: zod.string().nullable(),
+  reminderDismissedAt: zod.string().nullable(),
+  recurrence: zod.enum(["daily", "weekly", "monthly"]).nullable(),
+  createdAt: zod.string().describe("ISO datetime"),
+  updatedAt: zod.string().describe("ISO datetime"),
+});
+export const BulkArchiveTasksResponse = zod.array(BulkArchiveTasksResponseItem);
+
+/**
+ * Returns sprint snapshots for the given workspace, optionally filtered by sprint.
+ * @summary List sprint snapshots
+ */
+export const GetSprintSnapshotsParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const GetSprintSnapshotsQueryParams = zod.object({
+  sprintId: zod.coerce
+    .string()
+    .optional()
+    .describe("Filter snapshots by sprint ID."),
+});
+
+export const GetSprintSnapshotsResponseItem = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  sprintId: zod.string(),
+  date: zod.string().describe("YYYY-MM-DD"),
+  total: zod.number(),
+  done: zod.number(),
+  createdAt: zod.string().describe("ISO datetime"),
+});
+export const GetSprintSnapshotsResponse = zod.array(
+  GetSprintSnapshotsResponseItem,
+);
+
+/**
+ * Creates or updates a sprint snapshot. Unique on sprintId + date.
+ * @summary Upsert a sprint snapshot
+ */
+export const UpsertSprintSnapshotParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const UpsertSprintSnapshotBody = zod.object({
+  sprintId: zod.string(),
+  date: zod.string().describe("YYYY-MM-DD"),
+  total: zod.number(),
+  done: zod.number(),
+});
+
+export const UpsertSprintSnapshotResponse = zod.object({
+  id: zod.string(),
+  workspaceId: zod.string(),
+  sprintId: zod.string(),
+  date: zod.string().describe("YYYY-MM-DD"),
+  total: zod.number(),
+  done: zod.number(),
+  createdAt: zod.string().describe("ISO datetime"),
+});

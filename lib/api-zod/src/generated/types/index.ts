@@ -6,4 +6,27 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./bulkArchiveRequest";
+export * from "./column";
+export * from "./columnSemanticStatus";
+export * from "./createColumnRequest";
+export * from "./createColumnRequestSemanticStatus";
+export * from "./createSprintRequest";
+export * from "./createSprintSnapshotRequest";
+export * from "./createTaskRequest";
+export * from "./createTaskRequestRecurrence";
+export * from "./deleteColumnParams";
+export * from "./getSprintSnapshotsParams";
 export * from "./healthStatus";
+export * from "./reorderColumnsRequest";
+export * from "./sprint";
+export * from "./sprintSnapshot";
+export * from "./task";
+export * from "./taskRecurrence";
+export * from "./taskUpdateResponse";
+export * from "./updateColumnRequest";
+export * from "./updateColumnRequestSemanticStatus";
+export * from "./updateSprintRequest";
+export * from "./updateTaskRequest";
+export * from "./updateTaskRequestRecurrence";
+export * from "./workspace";

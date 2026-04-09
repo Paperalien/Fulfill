@@ -6,7 +6,8 @@ import {
 } from 'recharts';
 import { type ValueType, type NameType } from 'recharts/types/component/DefaultTooltipContent';
 import { useTaskContext } from '../contexts/TaskContext';
-import { getSprintSnapshots } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { useGetSprintSnapshots, getGetSprintSnapshotsQueryKey } from '@workspace/api-client-react';
 import { Sprint } from '../types/task';
 
 // ── Colour palette ─────────────────────────────────────────────────────────
@@ -134,25 +135,22 @@ function VelocityChart() {
 }
 
 // ── Burndown / Burnup charts ───────────────────────────────────────────────
-function buildBurnChartData(sprintId: string, sprint: Sprint) {
-  const snapshots = getSprintSnapshots();
+type SnapshotRow = { date: string; total: number; done: number };
+
+function buildBurnChartData(sprintId: string, sprint: Sprint, allSnapshots: SnapshotRow[]) {
   const start = sprint.startDate;
   const end = sprint.endDate;
 
   if (!start || !end) return [];
 
-  // Collect all dates from snapshots that fall within [start, end]
-  const allDates = Object.keys(snapshots)
-    .filter((d) => d >= start && d <= end && snapshots[d][sprintId])
-    .sort();
+  const rows = allSnapshots
+    .filter((s) => s.date >= start && s.date <= end)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  return allDates.map((date, idx) => {
-    const { total, done } = snapshots[date][sprintId];
+  return rows.map(({ date, total, done }, idx) => {
     const remaining = Math.max(0, total - done);
-
-    // Ideal burndown: linearly from total to 0 over the sprint
-    const startTotal = snapshots[allDates[0]][sprintId]?.total ?? total;
-    const totalDays = allDates.length - 1 || 1;
+    const startTotal = rows[0]?.total ?? total;
+    const totalDays = rows.length - 1 || 1;
     const ideal = Math.round(startTotal - (startTotal / totalDays) * idx);
 
     return {
@@ -166,8 +164,8 @@ function buildBurnChartData(sprintId: string, sprint: Sprint) {
   });
 }
 
-function BurndownChart({ sprintId, sprint }: { sprintId: string; sprint: Sprint }) {
-  const data = useMemo(() => buildBurnChartData(sprintId, sprint), [sprintId, sprint]);
+function BurndownChart({ sprintId, sprint, snapshots }: { sprintId: string; sprint: Sprint; snapshots: SnapshotRow[] }) {
+  const data = useMemo(() => buildBurnChartData(sprintId, sprint, snapshots), [sprintId, sprint, snapshots]);
 
   if (data.length < 2) {
     return (
@@ -190,8 +188,8 @@ function BurndownChart({ sprintId, sprint }: { sprintId: string; sprint: Sprint 
   );
 }
 
-function BurnupChart({ sprintId, sprint }: { sprintId: string; sprint: Sprint }) {
-  const data = useMemo(() => buildBurnChartData(sprintId, sprint), [sprintId, sprint]);
+function BurnupChart({ sprintId, sprint, snapshots }: { sprintId: string; sprint: Sprint; snapshots: SnapshotRow[] }) {
+  const data = useMemo(() => buildBurnChartData(sprintId, sprint, snapshots), [sprintId, sprint, snapshots]);
 
   if (data.length < 2) {
     return (
@@ -216,11 +214,23 @@ function BurnupChart({ sprintId, sprint }: { sprintId: string; sprint: Sprint })
 
 function BurnCharts() {
   const { sprints } = useTaskContext();
+  const { workspaceId } = useAuth();
+
+  const wid = workspaceId ?? '';
+  const { data: snapshotData } = useGetSprintSnapshots(
+    wid,
+    {},
+    { query: { enabled: !!workspaceId, queryKey: getGetSprintSnapshotsQueryKey(wid) } }
+  );
+  const allSnapshots: SnapshotRow[] = (snapshotData ?? []).map((s: { date: string; total: number; done: number }) => ({
+    date: s.date,
+    total: s.total,
+    done: s.done,
+  }));
 
   const defaultSprint = useMemo(() => {
     const active = sprints.find((s) => s.isActive);
     if (active) return active;
-    // Fall back to the sprint with the latest end date
     return sprints.reduce<Sprint | undefined>((best, s) => {
       if (!best) return s;
       return (s.endDate ?? '') > (best.endDate ?? '') ? s : best;
@@ -229,6 +239,7 @@ function BurnCharts() {
 
   const [selectedId, setSelectedId] = useState<string>(defaultSprint?.id ?? '');
   const selectedSprint = sprints.find((s) => s.id === selectedId);
+  const sprintSnapshots = allSnapshots.filter((s) => selectedId && true); // all passed down, filtered in buildBurnChartData
 
   if (sprints.length === 0) {
     return (
@@ -247,7 +258,7 @@ function BurnCharts() {
           <SprintSelector sprints={sprints} value={selectedId} onChange={setSelectedId} />
         </div>
         {selectedSprint ? (
-          <BurndownChart sprintId={selectedId} sprint={selectedSprint} />
+          <BurndownChart sprintId={selectedId} sprint={selectedSprint} snapshots={sprintSnapshots} />
         ) : (
           <EmptyState message="Select a sprint." />
         )}
@@ -259,7 +270,7 @@ function BurnCharts() {
           <SprintSelector sprints={sprints} value={selectedId} onChange={setSelectedId} />
         </div>
         {selectedSprint ? (
-          <BurnupChart sprintId={selectedId} sprint={selectedSprint} />
+          <BurnupChart sprintId={selectedId} sprint={selectedSprint} snapshots={sprintSnapshots} />
         ) : (
           <EmptyState message="Select a sprint." />
         )}
