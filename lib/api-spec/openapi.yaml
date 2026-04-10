@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: users
+    description: User operations
   - name: workspaces
     description: Workspace operations
   - name: columns
@@ -35,6 +37,26 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
 
+  /users/check-email:
+    post:
+      operationId: checkEmail
+      tags: [users]
+      summary: Check if an email has saved data
+      description: Public endpoint — checks whether a given email address is associated with an account that already has tasks, sprints, or custom columns. Used to decide whether to show a merge confirmation before sending a magic link.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckEmailRequest"
+      responses:
+        "200":
+          description: Whether the email has existing data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CheckEmailResponse"
+
   /workspaces/ensure-personal:
     post:
       operationId: ensurePersonalWorkspace
@@ -50,6 +72,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Workspace"
+
+  /workspaces/{workspaceId}/migrate:
+    post:
+      operationId: migrateLocalData
+      tags: [workspaces]
+      summary: Migrate local data to server
+      description: Atomically uploads all local (localStorage) data to the authenticated workspace in a single DB transaction. Deduplicates columns by name+semanticStatus. Remaps local IDs to server-assigned IDs for columns, sprints, and task self-references.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MigrateLocalDataRequest"
+      responses:
+        "200":
+          description: Migration completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MigrateLocalDataResponse"
 
   /workspaces/{workspaceId}/columns:
     get:
@@ -863,6 +909,138 @@ components:
         - total
         - done
         - createdAt
+
+    CheckEmailRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+
+    CheckEmailResponse:
+      type: object
+      required: [hasData]
+      properties:
+        hasData:
+          type: boolean
+
+    LocalColumn:
+      type: object
+      required: [id, name, order, semanticStatus]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        order:
+          type: integer
+        semanticStatus:
+          type: string
+          enum: [not-started, in-progress, done]
+        color:
+          type: string
+          nullable: true
+
+    LocalSprint:
+      type: object
+      required: [id, name, startDate, endDate, isActive]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        startDate:
+          type: string
+          description: YYYY-MM-DD
+        endDate:
+          type: string
+          description: YYYY-MM-DD
+        isActive:
+          type: boolean
+
+    LocalTask:
+      type: object
+      required: [id, title, notes, columnId, order]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        notes:
+          type: string
+        columnId:
+          type: string
+        sprintId:
+          type: string
+          nullable: true
+        storyPoints:
+          type: integer
+          nullable: true
+        order:
+          type: integer
+        dueDate:
+          type: string
+          nullable: true
+          description: YYYY-MM-DD
+        inProgressAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        archivedAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        deletedAt:
+          type: string
+          nullable: true
+          description: ISO datetime
+        parentId:
+          type: string
+          nullable: true
+        predecessorIds:
+          type: array
+          items:
+            type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+          nullable: true
+        reminder:
+          type: string
+          nullable: true
+        reminderDismissedAt:
+          type: string
+          nullable: true
+        recurrence:
+          type: string
+          nullable: true
+          enum: [daily, weekly, monthly]
+
+    MigrateLocalDataRequest:
+      type: object
+      required: [columns, sprints, tasks]
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocalColumn"
+        sprints:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocalSprint"
+        tasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/LocalTask"
+
+    MigrateLocalDataResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
 
     CreateSprintSnapshotRequest:
       type: object

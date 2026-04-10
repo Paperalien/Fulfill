@@ -28,11 +28,9 @@ import type {
 import { Task, Sprint, KanbanColumn, SemanticStatus } from '../types/task';
 import { getSemanticStatus } from '../utils/taskUtils';
 import { useAuth } from './AuthContext';
+import { useLocalTaskStore } from '../hooks/useLocalTaskStore';
 
 // ── Type adapters ────────────────────────────────────────────────────────────
-// The API types use `null` for absent optional values; the local types use
-// `undefined`. These adapters normalise API responses to the local shape so
-// that all consumers remain unchanged.
 
 function apiTaskToLocal(t: ApiTask): Task {
   return {
@@ -80,7 +78,7 @@ function apiSprintToLocal(s: ApiSprint): Sprint {
 
 // ── Context interface ────────────────────────────────────────────────────────
 
-interface TaskContextValue {
+export interface TaskContextValue {
   tasks: Task[];
   sprints: Sprint[];
   columns: KanbanColumn[];
@@ -105,12 +103,12 @@ interface TaskContextValue {
 
 const TaskContext = createContext<TaskContextValue | null>(null);
 
-// ── Provider ─────────────────────────────────────────────────────────────────
+// ── API store ─────────────────────────────────────────────────────────────────
+// Always called (hooks rules), but all queries/mutations are no-ops when
+// workspaceId is null (enabled: false).
 
-export function TaskProvider({ children }: { children: ReactNode }) {
-  const { workspaceId } = useAuth();
+function useApiTaskStore(workspaceId: string | null): TaskContextValue {
   const queryClient = useQueryClient();
-
   const enabled = !!workspaceId;
   const wid = workspaceId ?? '';
 
@@ -120,16 +118,11 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   const sprintsQuery = useGetSprints(wid, { query: { enabled, queryKey: getGetSprintsQueryKey(wid) } });
   const columnsQuery = useGetColumns(wid, { query: { enabled, queryKey: getGetColumnsQueryKey(wid) } });
 
-  const rawTasks = tasksQuery.data ?? [];
-  const rawSprints = sprintsQuery.data ?? [];
-  const rawColumns = columnsQuery.data ?? [];
+  const tasks: Task[] = (tasksQuery.data ?? []).map(apiTaskToLocal);
+  const sprints: Sprint[] = (sprintsQuery.data ?? []).map(apiSprintToLocal);
+  const columns: KanbanColumn[] = (columnsQuery.data ?? []).map(apiColumnToLocal);
 
-  const tasks: Task[] = rawTasks.map(apiTaskToLocal);
-  const sprints: Sprint[] = rawSprints.map(apiSprintToLocal);
-  const columns: KanbanColumn[] = rawColumns.map(apiColumnToLocal);
-
-  const loading =
-    tasksQuery.isLoading || sprintsQuery.isLoading || columnsQuery.isLoading;
+  const loading = tasksQuery.isLoading || sprintsQuery.isLoading || columnsQuery.isLoading;
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -165,22 +158,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const maxOrder = tasks.length > 0 ? Math.max(...tasks.map((t) => t.order)) : -1;
     const order = maxOrder + 1;
 
-    // Build an optimistic local task so we can return it synchronously
     const now = new Date().toISOString();
     const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const optimisticTask: Task = {
-      ...partial,
-      id: optimisticId,
-      createdAt: now,
-      updatedAt: now,
-      order,
-    };
+    const optimisticTask: Task = { ...partial, id: optimisticId, createdAt: now, updatedAt: now, order };
 
     const tasksKey = getGetTasksQueryKey(wid);
-
-    // Optimistic update
     queryClient.cancelQueries({ queryKey: tasksKey });
     const previousTasks = queryClient.getQueryData<ApiTask[]>(tasksKey);
+
     queryClient.setQueryData<ApiTask[]>(tasksKey, (old) => {
       const optimisticApi: ApiTask = {
         id: optimisticId,
@@ -226,12 +211,8 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         },
       },
       {
-        onError: () => {
-          queryClient.setQueryData(tasksKey, previousTasks);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: tasksKey });
-        },
+        onError: () => { queryClient.setQueryData(tasksKey, previousTasks); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: tasksKey }); },
       },
     );
 
@@ -245,7 +226,6 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     queryClient.cancelQueries({ queryKey: tasksKey });
     const previousTasks = queryClient.getQueryData<ApiTask[]>(tasksKey);
 
-    // Compute inProgressAt change client-side for the optimistic update
     const currentTask = (previousTasks ?? []).find((t) => t.id === id);
     const now = new Date().toISOString();
 
@@ -268,9 +248,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
         t.id === id
           ? {
               ...t,
-              ...Object.fromEntries(
-                Object.entries(updates).map(([k, v]) => [k, v ?? null])
-              ),
+              ...Object.fromEntries(Object.entries(updates).map(([k, v]) => [k, v ?? null])),
               inProgressAt,
               updatedAt: now,
             }
@@ -278,12 +256,10 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       )
     );
 
-    // Build the PATCH payload — only send fields that are present in `updates`
     const patchData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(updates)) {
       patchData[key] = value ?? null;
     }
-    // Always send the computed inProgressAt when columnId is changing
     if (updates.columnId) {
       patchData.inProgressAt = inProgressAt;
     }
@@ -292,22 +268,16 @@ export function TaskProvider({ children }: { children: ReactNode }) {
       { workspaceId: wid, taskId: id, data: patchData as Parameters<typeof updateTaskMutation.mutate>[0]['data'] },
       {
         onSuccess: (response: { updated: ApiTask; spawned: ApiTask | null }) => {
-          // Handle spawned recurrence task returned by the server
           if (response.spawned) {
             queryClient.setQueryData<ApiTask[]>(tasksKey, (old) => {
               if (!old) return old;
-              // Avoid duplicates (server may already have included it on refetch)
               const exists = old.some((t) => t.id === response.spawned!.id);
               return exists ? old : [...old, response.spawned!];
             });
           }
         },
-        onError: () => {
-          queryClient.setQueryData(tasksKey, previousTasks);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: tasksKey });
-        },
+        onError: () => { queryClient.setQueryData(tasksKey, previousTasks); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: tasksKey }); },
       },
     );
   }
@@ -321,35 +291,21 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const now = new Date().toISOString();
 
     queryClient.setQueryData<ApiTask[]>(tasksKey, (old) =>
-      (old ?? []).map((t) =>
-        t.id === id ? { ...t, deletedAt: now, updatedAt: now } : t
-      )
+      (old ?? []).map((t) => t.id === id ? { ...t, deletedAt: now, updatedAt: now } : t)
     );
 
     deleteTaskMutation.mutate(
       { workspaceId: wid, taskId: id },
       {
-        onError: () => {
-          queryClient.setQueryData(tasksKey, previousTasks);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: tasksKey });
-        },
+        onError: () => { queryClient.setQueryData(tasksKey, previousTasks); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: tasksKey }); },
       },
     );
   }
 
-  function undeleteTask(id: string): void {
-    updateTask(id, { deletedAt: undefined });
-  }
-
-  function archiveTask(id: string): void {
-    updateTask(id, { archivedAt: new Date().toISOString() });
-  }
-
-  function unarchiveTask(id: string): void {
-    updateTask(id, { archivedAt: undefined });
-  }
+  function undeleteTask(id: string): void { updateTask(id, { deletedAt: undefined }); }
+  function archiveTask(id: string): void { updateTask(id, { archivedAt: new Date().toISOString() }); }
+  function unarchiveTask(id: string): void { updateTask(id, { archivedAt: undefined }); }
 
   function archiveDoneTasks(taskIds?: string[]): void {
     if (!enabled) return;
@@ -360,9 +316,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const currentTasks = queryClient.getQueryData<ApiTask[]>(tasksKey) ?? [];
     const toArchive = taskIds
       ? currentTasks.filter((t) => taskIds.includes(t.id))
-      : currentTasks.filter(
-          (t) => doneIds.has(t.columnId) && !t.archivedAt && !t.deletedAt
-        );
+      : currentTasks.filter((t) => doneIds.has(t.columnId) && !t.archivedAt && !t.deletedAt);
 
     if (toArchive.length === 0) return;
 
@@ -370,20 +324,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const archiveSet = new Set(toArchive.map((t) => t.id));
 
     queryClient.setQueryData<ApiTask[]>(tasksKey, (old) =>
-      (old ?? []).map((t) =>
-        archiveSet.has(t.id) ? { ...t, archivedAt: now, updatedAt: now } : t
-      )
+      (old ?? []).map((t) => archiveSet.has(t.id) ? { ...t, archivedAt: now, updatedAt: now } : t)
     );
 
     bulkArchiveMutation.mutate(
       { workspaceId: wid, data: { taskIds: toArchive.map((t) => t.id) } },
       {
-        onError: () => {
-          queryClient.setQueryData(tasksKey, previousTasks);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: tasksKey });
-        },
+        onError: () => { queryClient.setQueryData(tasksKey, previousTasks); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: tasksKey }); },
       },
     );
   }
@@ -401,35 +349,18 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     queryClient.setQueryData<ApiSprint[]>(sprintsKey, (old) => {
       const optimisticApi: ApiSprint = {
-        id: optimisticId,
-        workspaceId: wid,
-        name: partial.name,
-        startDate: partial.startDate,
-        endDate: partial.endDate,
-        isActive: partial.isActive,
-        createdAt: now,
-        updatedAt: now,
+        id: optimisticId, workspaceId: wid,
+        name: partial.name, startDate: partial.startDate, endDate: partial.endDate,
+        isActive: partial.isActive, createdAt: now, updatedAt: now,
       };
       return [...(old ?? []), optimisticApi];
     });
 
     createSprintMutation.mutate(
+      { workspaceId: wid, data: { name: partial.name, startDate: partial.startDate, endDate: partial.endDate, isActive: partial.isActive } },
       {
-        workspaceId: wid,
-        data: {
-          name: partial.name,
-          startDate: partial.startDate,
-          endDate: partial.endDate,
-          isActive: partial.isActive,
-        },
-      },
-      {
-        onError: () => {
-          queryClient.setQueryData(sprintsKey, previousSprints);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: sprintsKey });
-        },
+        onError: () => { queryClient.setQueryData(sprintsKey, previousSprints); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: sprintsKey }); },
       },
     );
 
@@ -444,20 +375,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const previousSprints = queryClient.getQueryData<ApiSprint[]>(sprintsKey);
 
     queryClient.setQueryData<ApiSprint[]>(sprintsKey, (old) =>
-      (old ?? []).map((s) =>
-        s.id === id ? { ...s, ...updates, updatedAt: new Date().toISOString() } : s
-      )
+      (old ?? []).map((s) => s.id === id ? { ...s, ...updates, updatedAt: new Date().toISOString() } : s)
     );
 
     updateSprintMutation.mutate(
       { workspaceId: wid, sprintId: id, data: updates },
       {
-        onError: () => {
-          queryClient.setQueryData(sprintsKey, previousSprints);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: sprintsKey });
-        },
+        onError: () => { queryClient.setQueryData(sprintsKey, previousSprints); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: sprintsKey }); },
       },
     );
   }
@@ -473,14 +398,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const previousTasks = queryClient.getQueryData<ApiTask[]>(tasksKey);
     const now = new Date().toISOString();
 
-    queryClient.setQueryData<ApiSprint[]>(sprintsKey, (old) =>
-      (old ?? []).filter((s) => s.id !== id)
-    );
-    // Optimistically unassign tasks from the deleted sprint
+    queryClient.setQueryData<ApiSprint[]>(sprintsKey, (old) => (old ?? []).filter((s) => s.id !== id));
     queryClient.setQueryData<ApiTask[]>(tasksKey, (old) =>
-      (old ?? []).map((t) =>
-        t.sprintId === id ? { ...t, sprintId: null, updatedAt: now } : t
-      )
+      (old ?? []).map((t) => t.sprintId === id ? { ...t, sprintId: null, updatedAt: now } : t)
     );
 
     deleteSprintMutation.mutate(
@@ -513,35 +433,18 @@ export function TaskProvider({ children }: { children: ReactNode }) {
 
     queryClient.setQueryData<ApiColumn[]>(columnsKey, (old) => {
       const optimisticApi: ApiColumn = {
-        id: optimisticId,
-        workspaceId: wid,
-        name: partial.name,
-        order,
-        semanticStatus: partial.semanticStatus,
-        color: partial.color ?? null,
-        createdAt: now,
-        updatedAt: now,
+        id: optimisticId, workspaceId: wid, name: partial.name,
+        order, semanticStatus: partial.semanticStatus, color: partial.color ?? null,
+        createdAt: now, updatedAt: now,
       };
       return [...(old ?? []), optimisticApi];
     });
 
     createColumnMutation.mutate(
+      { workspaceId: wid, data: { name: partial.name, order, semanticStatus: partial.semanticStatus, color: partial.color ?? null } },
       {
-        workspaceId: wid,
-        data: {
-          name: partial.name,
-          order,
-          semanticStatus: partial.semanticStatus,
-          color: partial.color ?? null,
-        },
-      },
-      {
-        onError: () => {
-          queryClient.setQueryData(columnsKey, previousColumns);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: columnsKey });
-        },
+        onError: () => { queryClient.setQueryData(columnsKey, previousColumns); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: columnsKey }); },
       },
     );
 
@@ -556,29 +459,14 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const previousColumns = queryClient.getQueryData<ApiColumn[]>(columnsKey);
 
     queryClient.setQueryData<ApiColumn[]>(columnsKey, (old) =>
-      (old ?? []).map((c) =>
-        c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c
-      )
+      (old ?? []).map((c) => c.id === id ? { ...c, ...updates, updatedAt: new Date().toISOString() } : c)
     );
 
     updateColumnMutation.mutate(
+      { workspaceId: wid, columnId: id, data: { name: updates.name, order: updates.order, semanticStatus: updates.semanticStatus, color: updates.color ?? null } },
       {
-        workspaceId: wid,
-        columnId: id,
-        data: {
-          name: updates.name,
-          order: updates.order,
-          semanticStatus: updates.semanticStatus,
-          color: updates.color ?? null,
-        },
-      },
-      {
-        onError: () => {
-          queryClient.setQueryData(columnsKey, previousColumns);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: columnsKey });
-        },
+        onError: () => { queryClient.setQueryData(columnsKey, previousColumns); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: columnsKey }); },
       },
     );
   }
@@ -594,13 +482,9 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const previousTasks = queryClient.getQueryData<ApiTask[]>(tasksKey);
     const now = new Date().toISOString();
 
-    queryClient.setQueryData<ApiColumn[]>(columnsKey, (old) =>
-      (old ?? []).filter((c) => c.id !== id)
-    );
+    queryClient.setQueryData<ApiColumn[]>(columnsKey, (old) => (old ?? []).filter((c) => c.id !== id));
     queryClient.setQueryData<ApiTask[]>(tasksKey, (old) =>
-      (old ?? []).map((t) =>
-        t.columnId === id ? { ...t, columnId: reassignToId, updatedAt: now } : t
-      )
+      (old ?? []).map((t) => t.columnId === id ? { ...t, columnId: reassignToId, updatedAt: now } : t)
     );
 
     deleteColumnMutation.mutate(
@@ -635,24 +519,17 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     reorderColumnsMutation.mutate(
       { workspaceId: wid, data: { columnIds: orderedIds } },
       {
-        onError: () => {
-          queryClient.setQueryData(columnsKey, previousColumns);
-        },
-        onSettled: () => {
-          queryClient.invalidateQueries({ queryKey: columnsKey });
-        },
+        onError: () => { queryClient.setQueryData(columnsKey, previousColumns); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: columnsKey }); },
       },
     );
   }
 
   // ── Daily snapshot recording ───────────────────────────────────────────────
-  // Run once on mount (after data has loaded) to record today's sprint snapshots
-  // via the API. Uses a ref to ensure it runs only once per provider mount.
 
   const snapshotRecordedRef = useRef(false);
 
   useEffect(() => {
-    // Wait until all data is available and we haven't recorded yet this mount
     if (snapshotRecordedRef.current) return;
     if (!enabled || loading) return;
     if (sprints.length === 0) return;
@@ -663,9 +540,7 @@ export function TaskProvider({ children }: { children: ReactNode }) {
     const doneIds = new Set(doneColumnIds());
 
     for (const sprint of sprints) {
-      const sprintTasks = tasks.filter(
-        (t) => t.sprintId === sprint.id && !t.deletedAt
-      );
+      const sprintTasks = tasks.filter((t) => t.sprintId === sprint.id && !t.deletedAt);
       const total = sprintTasks.reduce((s, t) => s + (t.storyPoints ?? 0), 0);
       const done = sprintTasks
         .filter((t) => doneIds.has(t.columnId) || !!t.archivedAt)
@@ -679,33 +554,29 @@ export function TaskProvider({ children }: { children: ReactNode }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, loading]);
 
-  // ── Context value ──────────────────────────────────────────────────────────
+  return {
+    tasks, sprints, columns, loading,
+    addTask, updateTask, deleteTask, undeleteTask, archiveTask, unarchiveTask, archiveDoneTasks,
+    addSprint, updateSprint, deleteSprint,
+    addColumn, updateColumn, deleteColumn, reorderColumns,
+    getSemanticStatusForTask, doneColumnIds,
+  };
+}
+
+// ── Provider ─────────────────────────────────────────────────────────────────
+
+export function TaskProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated, workspaceId } = useAuth();
+
+  // Both hooks are always called (React rules of hooks).
+  // API hooks are no-ops when workspaceId is null (enabled: false).
+  const localStore = useLocalTaskStore();
+  const apiStore = useApiTaskStore(workspaceId);
+
+  const store = isAuthenticated ? apiStore : localStore;
 
   return (
-    <TaskContext.Provider
-      value={{
-        tasks,
-        sprints,
-        columns,
-        loading,
-        addTask,
-        updateTask,
-        deleteTask,
-        undeleteTask,
-        archiveTask,
-        unarchiveTask,
-        archiveDoneTasks,
-        addSprint,
-        updateSprint,
-        deleteSprint,
-        addColumn,
-        updateColumn,
-        deleteColumn,
-        reorderColumns,
-        getSemanticStatusForTask,
-        doneColumnIds,
-      }}
-    >
+    <TaskContext.Provider value={store}>
       {children}
     </TaskContext.Provider>
   );

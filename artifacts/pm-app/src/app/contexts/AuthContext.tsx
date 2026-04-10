@@ -7,7 +7,9 @@ interface AuthContextValue {
   session: Session | null;
   workspaceId: string | null;
   loading: boolean;
+  isAuthenticated: boolean;
   signOut: () => Promise<void>;
+  signInWithEmail: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -18,22 +20,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize from the current session on mount
+    // Resolve loading as soon as getSession() returns — don't wait for workspace
     supabase.auth.getSession().then(({ data }) => {
       const initialSession = data.session ?? null;
       setSession(initialSession);
+      setLoading(false);
 
       if (initialSession) {
         setAuthTokenGetter(
           () => supabase.auth.getSession().then(({ data }) => data.session?.access_token ?? null)
         );
         ensurePersonalWorkspace(initialSession.access_token);
-      } else {
-        setLoading(false);
       }
     });
 
-    // Listen for future auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
 
@@ -45,7 +45,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setWorkspaceId(null);
         setAuthTokenGetter(() => Promise.resolve(null));
-        setLoading(false);
       }
     });
 
@@ -71,8 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error('Failed to ensure personal workspace:', err);
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -80,8 +77,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }
 
+  async function signInWithEmail(email: string) {
+    await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    });
+  }
+
+  const isAuthenticated = !!session && !!workspaceId;
+
   return (
-    <AuthContext.Provider value={{ session, workspaceId, loading, signOut }}>
+    <AuthContext.Provider value={{ session, workspaceId, loading, isAuthenticated, signOut, signInWithEmail }}>
       {children}
     </AuthContext.Provider>
   );

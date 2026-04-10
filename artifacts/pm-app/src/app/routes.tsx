@@ -7,20 +7,14 @@ import PlanningPoker from './pages/PlanningPoker';
 import DoneFolder from './pages/DoneFolder';
 import TrashBin from './pages/TrashBin';
 import Charts from './pages/Charts';
-import Login from './pages/Login';
-import { ProtectedRoute } from './components/ProtectedRoute';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
 export const router = createBrowserRouter(
   [
     {
-      path: '/login',
-      element: <Login />,
-    },
-    {
       path: '/',
-      element: <ProtectedRoute><Layout /></ProtectedRoute>,
+      element: <Layout />,
       children: [
         { index: true, element: <TodoList /> },
         { path: 'kanban', element: <KanbanBoard /> },

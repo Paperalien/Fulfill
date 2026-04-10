@@ -18,6 +18,8 @@ import type {
 
 import type {
   BulkArchiveRequest,
+  CheckEmailRequest,
+  CheckEmailResponse,
   Column,
   CreateColumnRequest,
   CreateSprintRequest,
@@ -26,6 +28,8 @@ import type {
   DeleteColumnParams,
   GetSprintSnapshotsParams,
   HealthStatus,
+  MigrateLocalDataRequest,
+  MigrateLocalDataResponse,
   ReorderColumnsRequest,
   Sprint,
   SprintSnapshot,
@@ -123,6 +127,93 @@ export function useHealthCheck<
 }
 
 /**
+ * Public endpoint — checks whether a given email address is associated with an account that already has tasks, sprints, or custom columns. Used to decide whether to show a merge confirmation before sending a magic link.
+ * @summary Check if an email has saved data
+ */
+export const getCheckEmailUrl = () => {
+  return `/api/users/check-email`;
+};
+
+export const checkEmail = async (
+  checkEmailRequest: CheckEmailRequest,
+  options?: RequestInit,
+): Promise<CheckEmailResponse> => {
+  return customFetch<CheckEmailResponse>(getCheckEmailUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(checkEmailRequest),
+  });
+};
+
+export const getCheckEmailMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof checkEmail>>,
+    TError,
+    { data: BodyType<CheckEmailRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof checkEmail>>,
+  TError,
+  { data: BodyType<CheckEmailRequest> },
+  TContext
+> => {
+  const mutationKey = ["checkEmail"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof checkEmail>>,
+    { data: BodyType<CheckEmailRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return checkEmail(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CheckEmailMutationResult = NonNullable<
+  Awaited<ReturnType<typeof checkEmail>>
+>;
+export type CheckEmailMutationBody = BodyType<CheckEmailRequest>;
+export type CheckEmailMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Check if an email has saved data
+ */
+export const useCheckEmail = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof checkEmail>>,
+    TError,
+    { data: BodyType<CheckEmailRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof checkEmail>>,
+  TError,
+  { data: BodyType<CheckEmailRequest> },
+  TContext
+> => {
+  return useMutation(getCheckEmailMutationOptions(options));
+};
+
+/**
  * Creates a personal workspace for the authenticated user if one does not already exist, then returns it.
  * @summary Ensure personal workspace exists
  */
@@ -202,6 +293,97 @@ export const useEnsurePersonalWorkspace = <
   TContext
 > => {
   return useMutation(getEnsurePersonalWorkspaceMutationOptions(options));
+};
+
+/**
+ * Atomically uploads all local (localStorage) data to the authenticated workspace in a single DB transaction. Deduplicates columns by name+semanticStatus. Remaps local IDs to server-assigned IDs for columns, sprints, and task self-references.
+ * @summary Migrate local data to server
+ */
+export const getMigrateLocalDataUrl = (workspaceId: string) => {
+  return `/api/workspaces/${workspaceId}/migrate`;
+};
+
+export const migrateLocalData = async (
+  workspaceId: string,
+  migrateLocalDataRequest: MigrateLocalDataRequest,
+  options?: RequestInit,
+): Promise<MigrateLocalDataResponse> => {
+  return customFetch<MigrateLocalDataResponse>(
+    getMigrateLocalDataUrl(workspaceId),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(migrateLocalDataRequest),
+    },
+  );
+};
+
+export const getMigrateLocalDataMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof migrateLocalData>>,
+    TError,
+    { workspaceId: string; data: BodyType<MigrateLocalDataRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof migrateLocalData>>,
+  TError,
+  { workspaceId: string; data: BodyType<MigrateLocalDataRequest> },
+  TContext
+> => {
+  const mutationKey = ["migrateLocalData"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof migrateLocalData>>,
+    { workspaceId: string; data: BodyType<MigrateLocalDataRequest> }
+  > = (props) => {
+    const { workspaceId, data } = props ?? {};
+
+    return migrateLocalData(workspaceId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MigrateLocalDataMutationResult = NonNullable<
+  Awaited<ReturnType<typeof migrateLocalData>>
+>;
+export type MigrateLocalDataMutationBody = BodyType<MigrateLocalDataRequest>;
+export type MigrateLocalDataMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Migrate local data to server
+ */
+export const useMigrateLocalData = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof migrateLocalData>>,
+    TError,
+    { workspaceId: string; data: BodyType<MigrateLocalDataRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof migrateLocalData>>,
+  TError,
+  { workspaceId: string; data: BodyType<MigrateLocalDataRequest> },
+  TContext
+> => {
+  return useMutation(getMigrateLocalDataMutationOptions(options));
 };
 
 /**

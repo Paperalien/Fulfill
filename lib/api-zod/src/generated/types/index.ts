@@ -7,6 +7,8 @@
  */
 
 export * from "./bulkArchiveRequest";
+export * from "./checkEmailRequest";
+export * from "./checkEmailResponse";
 export * from "./column";
 export * from "./columnSemanticStatus";
 export * from "./createColumnRequest";
@@ -18,6 +20,13 @@ export * from "./createTaskRequestRecurrence";
 export * from "./deleteColumnParams";
 export * from "./getSprintSnapshotsParams";
 export * from "./healthStatus";
+export * from "./localColumn";
+export * from "./localColumnSemanticStatus";
+export * from "./localSprint";
+export * from "./localTask";
+export * from "./localTaskRecurrence";
+export * from "./migrateLocalDataRequest";
+export * from "./migrateLocalDataResponse";
 export * from "./reorderColumnsRequest";
 export * from "./sprint";
 export * from "./sprintSnapshot";

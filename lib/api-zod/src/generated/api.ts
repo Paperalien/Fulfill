@@ -16,6 +16,18 @@ export const HealthCheckResponse = zod.object({
 });
 
 /**
+ * Public endpoint — checks whether a given email address is associated with an account that already has tasks, sprints, or custom columns. Used to decide whether to show a merge confirmation before sending a magic link.
+ * @summary Check if an email has saved data
+ */
+export const CheckEmailBody = zod.object({
+  email: zod.string(),
+});
+
+export const CheckEmailResponse = zod.object({
+  hasData: zod.boolean(),
+});
+
+/**
  * Creates a personal workspace for the authenticated user if one does not already exist, then returns it.
  * @summary Ensure personal workspace exists
  */
@@ -24,6 +36,60 @@ export const EnsurePersonalWorkspaceResponse = zod.object({
   name: zod.string(),
   ownerId: zod.string(),
   createdAt: zod.string().describe("ISO datetime"),
+});
+
+/**
+ * Atomically uploads all local (localStorage) data to the authenticated workspace in a single DB transaction. Deduplicates columns by name+semanticStatus. Remaps local IDs to server-assigned IDs for columns, sprints, and task self-references.
+ * @summary Migrate local data to server
+ */
+export const MigrateLocalDataParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const MigrateLocalDataBody = zod.object({
+  columns: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      order: zod.number(),
+      semanticStatus: zod.enum(["not-started", "in-progress", "done"]),
+      color: zod.string().nullish(),
+    }),
+  ),
+  sprints: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      startDate: zod.string().describe("YYYY-MM-DD"),
+      endDate: zod.string().describe("YYYY-MM-DD"),
+      isActive: zod.boolean(),
+    }),
+  ),
+  tasks: zod.array(
+    zod.object({
+      id: zod.string(),
+      title: zod.string(),
+      notes: zod.string(),
+      columnId: zod.string(),
+      sprintId: zod.string().nullish(),
+      storyPoints: zod.number().nullish(),
+      order: zod.number(),
+      dueDate: zod.string().nullish().describe("YYYY-MM-DD"),
+      inProgressAt: zod.string().nullish().describe("ISO datetime"),
+      archivedAt: zod.string().nullish().describe("ISO datetime"),
+      deletedAt: zod.string().nullish().describe("ISO datetime"),
+      parentId: zod.string().nullish(),
+      predecessorIds: zod.array(zod.string()).nullish(),
+      tags: zod.array(zod.string()).nullish(),
+      reminder: zod.string().nullish(),
+      reminderDismissedAt: zod.string().nullish(),
+      recurrence: zod.enum(["daily", "weekly", "monthly"]).nullish(),
+    }),
+  ),
+});
+
+export const MigrateLocalDataResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**

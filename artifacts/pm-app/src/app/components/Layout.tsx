@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { ReminderBanner } from './ReminderBanner';
+import { AuthArea } from './AuthArea';
 
 const NAV_ITEMS = [
   { to: '/', label: 'To-Do', icon: ListTodo, end: true },
@@ -45,6 +46,9 @@ export default function Layout() {
               {inProgressCount} in progress
             </p>
           )}
+          <div className="mt-2">
+            <AuthArea />
+          </div>
         </div>
         <nav className="flex-1 py-2">
           {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (

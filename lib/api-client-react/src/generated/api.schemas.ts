@@ -228,6 +228,85 @@ export interface SprintSnapshot {
   createdAt: string;
 }
 
+export interface CheckEmailRequest {
+  email: string;
+}
+
+export interface CheckEmailResponse {
+  hasData: boolean;
+}
+
+export type LocalColumnSemanticStatus =
+  (typeof LocalColumnSemanticStatus)[keyof typeof LocalColumnSemanticStatus];
+
+export const LocalColumnSemanticStatus = {
+  "not-started": "not-started",
+  "in-progress": "in-progress",
+  done: "done",
+} as const;
+
+export interface LocalColumn {
+  id: string;
+  name: string;
+  order: number;
+  semanticStatus: LocalColumnSemanticStatus;
+  color?: string | null;
+}
+
+export interface LocalSprint {
+  id: string;
+  name: string;
+  /** YYYY-MM-DD */
+  startDate: string;
+  /** YYYY-MM-DD */
+  endDate: string;
+  isActive: boolean;
+}
+
+export type LocalTaskRecurrence =
+  | (typeof LocalTaskRecurrence)[keyof typeof LocalTaskRecurrence]
+  | null;
+
+export const LocalTaskRecurrence = {
+  daily: "daily",
+  weekly: "weekly",
+  monthly: "monthly",
+} as const;
+
+export interface LocalTask {
+  id: string;
+  title: string;
+  notes: string;
+  columnId: string;
+  sprintId?: string | null;
+  storyPoints?: number | null;
+  order: number;
+  /** YYYY-MM-DD */
+  dueDate?: string | null;
+  /** ISO datetime */
+  inProgressAt?: string | null;
+  /** ISO datetime */
+  archivedAt?: string | null;
+  /** ISO datetime */
+  deletedAt?: string | null;
+  parentId?: string | null;
+  predecessorIds?: string[] | null;
+  tags?: string[] | null;
+  reminder?: string | null;
+  reminderDismissedAt?: string | null;
+  recurrence?: LocalTaskRecurrence;
+}
+
+export interface MigrateLocalDataRequest {
+  columns: LocalColumn[];
+  sprints: LocalSprint[];
+  tasks: LocalTask[];
+}
+
+export interface MigrateLocalDataResponse {
+  success: boolean;
+}
+
 export interface CreateSprintSnapshotRequest {
   sprintId: string;
   /** YYYY-MM-DD */

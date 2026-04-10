@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { Task } from '../types/task';
 import { useTaskContext } from '../contexts/TaskContext';
@@ -23,6 +23,17 @@ export function TaskEditModal({ task, onClose }: Props) {
   const [tags, setTags] = useState(task.tags ?? []);
   const [reminder, setReminder] = useState(task.reminder);
   const [recurrence, setRecurrence] = useState(task.recurrence);
+
+  // Keep a ref to the latest handleSave to avoid stale closure in the event listener
+  const handleSaveRef = useRef(handleSave);
+  useEffect(() => { handleSaveRef.current = handleSave; });
+
+  // Auto-save when migration is about to start
+  useEffect(() => {
+    const handler = () => handleSaveRef.current();
+    window.addEventListener('fulfill:flush-edits', handler);
+    return () => window.removeEventListener('fulfill:flush-edits', handler);
+  }, []);
 
   function handleSave() {
     updateTask(task.id, {
