@@ -14,6 +14,10 @@ pnpm run dev                          # Start api-server + pm-app in parallel (u
 pnpm run codegen                      # Regenerate API client + Zod validators (use /codegen skill)
 pnpm -F @workspace/db run push        # Apply schema migrations (use /db-push skill)
 
+# Testing
+pnpm -F @workspace/pm-app test        # Run Vitest unit tests
+pnpm -F @workspace/pm-app test:watch  # Watch mode
+
 # Type checking
 pnpm run typecheck                    # Typecheck all packages (fastest correctness check)
 pnpm run build                        # Full build (typecheck + compile all packages)
@@ -25,7 +29,7 @@ pnpm -F @workspace/api-server run typecheck
 pnpm -F @workspace/pm-app run typecheck
 ```
 
-There are no automated tests in this codebase.
+Unit tests live in `artifacts/pm-app/src/` alongside their source files (`*.test.ts`, `*.test.tsx`). Run with `pnpm -F @workspace/pm-app test`.
 
 ## Monorepo Structure
 
@@ -169,6 +173,12 @@ VITE_API_BASE_URL=http://localhost:3000
 VITE_SUPABASE_URL=https://[project].supabase.co
 VITE_SUPABASE_ANON_KEY=...
 ```
+
+## Testing
+
+- **Plan tests alongside features.** When planning any new feature or non-trivial change, include a testing step in the plan. Identify which units are worth testing (pure functions, hooks with branching logic, UI flows with multiple states) and write the tests as part of the same task — not as an afterthought.
+- **Run tests before committing.** Always run `pnpm -F @workspace/pm-app test` before creating a commit that touches `artifacts/pm-app/`. All tests must pass. If a test fails, fix it or (if the test is wrong) update it with a clear reason — do not skip or disable tests to make the commit pass.
+- **Test file conventions:** co-locate test files with their source (`localStore.test.ts` next to `localStore.ts`); use `vi.hoisted()` for mock refs that need to be shared across `vi.mock()` factories; use `happy-dom` (configured globally via `vite.config.ts`).
 
 ## TypeScript
 
