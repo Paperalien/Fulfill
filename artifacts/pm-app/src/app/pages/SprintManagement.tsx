@@ -55,6 +55,7 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
             onClick={() => setShowEdit(true)}
             className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity p-1 rounded hover:bg-accent"
             title="Edit task"
+            aria-label="Edit task"
             data-testid={`sprint-edit-${task.id}`}
           >
             <Pencil size={13} />
@@ -124,6 +125,10 @@ export default function SprintManagement() {
     setShowSprintForm(false);
   };
 
+  // NOTE: Current behavior enforces single-active-sprint by deactivating all others.
+  // The data model supports multiple active sprints but the full feature design
+  // (UI, charts, filters) is not finalized. Do not remove this constraint without
+  // a design decision. See guidelines/Guidelines.md — Sprint section.
   const handleActivate = (sprintId: string) => {
     sprints.forEach((s) => { if (s.isActive && s.id !== sprintId) updateSprint(s.id, { isActive: false }); });
     updateSprint(sprintId, { isActive: true });
@@ -204,7 +209,7 @@ export default function SprintManagement() {
                   ) : (
                     <button onClick={() => handleDeactivate(sprint.id)} className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-accent" data-testid={`sprint-stop-${sprint.id}`}><Square size={12} /> Stop</button>
                   )}
-                  <button onClick={() => setConfirmDeleteSprint(sprint.id)} className="p-1 text-muted-foreground hover:text-destructive" data-testid={`sprint-delete-${sprint.id}`}>
+                  <button onClick={() => setConfirmDeleteSprint(sprint.id)} aria-label="Delete sprint" className="p-1 text-muted-foreground hover:text-destructive" data-testid={`sprint-delete-${sprint.id}`}>
                     <Trash2 size={14} />
                   </button>
                 </div>

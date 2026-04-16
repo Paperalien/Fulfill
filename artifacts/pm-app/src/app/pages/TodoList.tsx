@@ -35,6 +35,7 @@ function SubtaskRow({ task }: { task: Task }) {
       {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
       <button
         onClick={() => deleteTask(task.id)}
+        aria-label="Delete subtask"
         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
       >
         <Trash2 size={12} />
@@ -203,6 +204,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
           </button>
           <button
             onClick={() => deleteTask(task.id)}
+            aria-label="Delete task"
             className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
             data-testid={`delete-task-${task.id}`}
           >

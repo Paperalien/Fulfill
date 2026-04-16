@@ -154,7 +154,7 @@ export function SavePrompt({ open, onOpenChange }: Props) {
               <Button size="sm" onClick={handleMerge} disabled={submitting}>
                 {submitting ? 'Sending…' : 'Merge and continue'}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => handleOpenChange(false)}>
+              <Button size="sm" variant="ghost" onClick={() => setPanel('email')}>
                 Cancel
               </Button>
             </div>

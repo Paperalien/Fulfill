@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import usersRouter from "./users";
 import { requireAuth } from "../middlewares/auth";
+import { requireWorkspaceAccess } from "../middlewares/requireWorkspaceAccess";
 import workspacesRouter from "./workspaces";
 import migrateRouter from "./migrate";
 import tasksRouter from "./tasks";
@@ -17,6 +18,9 @@ router.use(usersRouter);
 
 // All routes below require authentication
 router.use(requireAuth);
+
+// Verify the authenticated user owns :workspaceId before any workspace-scoped handler runs
+router.use("/workspaces/:workspaceId", requireWorkspaceAccess);
 
 router.use("/workspaces", workspacesRouter);
 router.use("/workspaces/:workspaceId/migrate", migrateRouter);

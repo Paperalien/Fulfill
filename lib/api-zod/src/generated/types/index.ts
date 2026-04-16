@@ -18,6 +18,7 @@ export * from "./createSprintSnapshotRequest";
 export * from "./createTaskRequest";
 export * from "./createTaskRequestRecurrence";
 export * from "./deleteColumnParams";
+export * from "./ensurePersonalWorkspace200";
 export * from "./getSprintSnapshotsParams";
 export * from "./healthStatus";
 export * from "./localColumn";

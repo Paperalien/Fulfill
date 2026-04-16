@@ -62,7 +62,7 @@ paths:
       operationId: ensurePersonalWorkspace
       tags: [workspaces]
       summary: Ensure personal workspace exists
-      description: Creates a personal workspace for the authenticated user if one does not already exist, then returns it.
+      description: Creates a personal workspace for the authenticated user if one does not already exist, then returns it. Always returns 200 regardless of whether the workspace was created or already existed.
       security:
         - bearerAuth: []
       responses:
@@ -71,7 +71,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Workspace"
+                type: object
+                required: [workspaceId]
+                properties:
+                  workspaceId:
+                    type: string
 
   /workspaces/{workspaceId}/migrate:
     post:
@@ -368,6 +372,21 @@ paths:
       responses:
         "204":
           description: Task deleted
+
+  /workspaces/{workspaceId}/tasks/{taskId}/permanent:
+    delete:
+      operationId: deleteTaskPermanent
+      tags: [tasks]
+      summary: Permanently delete a task
+      description: Hard-deletes a task, removing it from the database entirely. Intended for use from the Trash Bin "Delete forever" action. The task must already be soft-deleted (deletedAt set).
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+        - $ref: "#/components/parameters/taskId"
+      responses:
+        "204":
+          description: Task permanently deleted
 
   /workspaces/{workspaceId}/tasks/bulk-archive:
     patch:

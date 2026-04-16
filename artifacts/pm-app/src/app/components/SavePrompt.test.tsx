@@ -119,7 +119,7 @@ describe('SavePrompt', () => {
     expect(mockSignInWithEmail).not.toHaveBeenCalled();
   });
 
-  it('Cancel on merge-confirm calls onOpenChange(false) and does NOT call signInWithEmail', async () => {
+  it('Cancel on merge-confirm returns to email panel with email preserved and does NOT call signInWithEmail', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(true);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -135,7 +135,12 @@ describe('SavePrompt', () => {
 
     await user.click(screen.getByRole('button', { name: /cancel/i }));
 
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    // Should return to email panel — email input visible with value preserved
+    expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
+    expect((screen.getByPlaceholderText(/you@example\.com/i) as HTMLInputElement).value).toBe('user@test.com');
+    // Popover should remain open
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    // OTP must NOT have been sent
     expect(mockSignInWithEmail).not.toHaveBeenCalled();
   });
 

@@ -28,14 +28,11 @@ export const CheckEmailResponse = zod.object({
 });
 
 /**
- * Creates a personal workspace for the authenticated user if one does not already exist, then returns it.
+ * Creates a personal workspace for the authenticated user if one does not already exist, then returns it. Always returns 200 regardless of whether the workspace was created or already existed.
  * @summary Ensure personal workspace exists
  */
 export const EnsurePersonalWorkspaceResponse = zod.object({
-  id: zod.string(),
-  name: zod.string(),
-  ownerId: zod.string(),
-  createdAt: zod.string().describe("ISO datetime"),
+  workspaceId: zod.string(),
 });
 
 /**
@@ -413,6 +410,15 @@ export const UpdateTaskResponse = zod.object({
  * @summary Delete a task
  */
 export const DeleteTaskParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+  taskId: zod.coerce.string().describe("The task ID."),
+});
+
+/**
+ * Hard-deletes a task, removing it from the database entirely. Intended for use from the Trash Bin "Delete forever" action. The task must already be soft-deleted (deletedAt set).
+ * @summary Permanently delete a task
+ */
+export const DeleteTaskPermanentParams = zod.object({
   workspaceId: zod.coerce.string().describe("The workspace ID."),
   taskId: zod.coerce.string().describe("The task ID."),
 });

@@ -9,8 +9,9 @@ const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: '
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export default function TrashBin() {
-  const { tasks, columns, undeleteTask } = useTaskContext();
+  const { tasks, columns, undeleteTask, permanentDeleteTask } = useTaskContext();
   const [search, setSearch] = useState<SearchState>(DEFAULT_SEARCH);
+  const [confirmPermanent, setConfirmPermanent] = useState<string | null>(null);
 
   const now = Date.now();
   const trashedTasks = tasks
@@ -92,14 +93,43 @@ export default function TrashBin() {
                     </span>
                   </div>
                 </div>
-                <button
-                  onClick={() => undeleteTask(task.id)}
-                  className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-accent transition-colors shrink-0"
-                  data-testid={`trash-restore-${task.id}`}
-                >
-                  <RefreshCw size={12} />
-                  Restore
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => undeleteTask(task.id)}
+                    className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded hover:bg-accent transition-colors"
+                    data-testid={`trash-restore-${task.id}`}
+                  >
+                    <RefreshCw size={12} />
+                    Restore
+                  </button>
+                  {confirmPermanent === task.id ? (
+                    <span className="flex items-center gap-1">
+                      <span className="text-xs text-destructive font-medium">Sure?</span>
+                      <button
+                        onClick={() => { permanentDeleteTask(task.id); setConfirmPermanent(null); }}
+                        className="text-xs px-2 py-1 bg-destructive text-destructive-foreground rounded hover:opacity-90"
+                        data-testid={`trash-delete-confirm-${task.id}`}
+                      >
+                        Yes, delete
+                      </button>
+                      <button
+                        onClick={() => setConfirmPermanent(null)}
+                        className="text-xs px-2 py-1 border border-border rounded hover:bg-accent"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmPermanent(task.id)}
+                      className="flex items-center gap-1 text-xs px-2 py-1 border border-border rounded text-destructive hover:bg-destructive/10 transition-colors"
+                      data-testid={`trash-delete-forever-${task.id}`}
+                    >
+                      <Trash2 size={12} />
+                      Delete forever
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })

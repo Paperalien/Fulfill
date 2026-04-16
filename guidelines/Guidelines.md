@@ -148,6 +148,11 @@ Done         (done, green)
 - Multiple columns can share the same `semanticStatus`.
 - **No transition rules. Ever.**
 
+### Sprint activation (single-active enforced by UI — not finalized)
+- **Multiple active sprints — not finalized.** The schema supports `isActive: true` on multiple sprints simultaneously.
+- The UI currently enforces single-active by deactivating all others on activation (`handleActivate` in `SprintManagement.tsx`).
+- Charts, filters, and backlog views are not yet designed for the multi-sprint case. The constraint will be lifted once the feature design is complete.
+
 ### Phone number / SMS OTP
 - **Deferred.** Email magic link only for now.
 
@@ -188,7 +193,8 @@ artifacts/
       columns.ts              # Column CRUD + reorder
       sprint-snapshots.ts     # Burndown snapshot upsert
     middlewares/
-      auth.ts                 # Bearer token validation via Supabase
+      auth.ts                       # Bearer token validation via Supabase
+      requireWorkspaceAccess.ts     # Verifies workspace.ownerId === req.user.id; 403 if not
 
   pm-app/src/app/
     types/task.ts             # Task, Sprint, KanbanColumn, SemanticStatus, DEFAULT_COLUMNS
@@ -238,10 +244,316 @@ lib/
 
 ---
 
+---
+
+## UML Diagrams
+
+All diagrams use [Mermaid](https://mermaid.js.org/) syntax, rendered natively by GitHub and most Markdown viewers.
+
+---
+
+### Auth State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Resolving : app mount\ngetSession()
+
+    Resolving --> Unauthenticated : no session
+    Resolving --> SessionOnly : session found\nworkspace pending
+
+    SessionOnly --> Authenticated : ensurePersonalWorkspace()\nworkspaceId set
+    SessionOnly --> Unauthenticated : workspace fetch fails
+
+    Unauthenticated --> MagicLinkSent : signInWithEmail(email)
+    MagicLinkSent --> SessionOnly : user clicks link\nonAuthStateChange fires
+
+    Authenticated --> Unauthenticated : signOut()
+
+    note right of Resolving
+        loading = true
+        isAuthenticated = false
+        TaskContext → localStorage
+    end note
+
+    note right of Unauthenticated
+        loading = false
+        isAuthenticated = false
+        TaskContext → localStorage
+    end note
+
+    note right of SessionOnly
+        loading = false
+        isAuthenticated = false  ← !! session but no workspaceId yet
+        TaskContext → localStorage (avoid one bad render)
+    end note
+
+    note right of Authenticated
+        loading = false
+        isAuthenticated = true
+        TaskContext → API
+    end note
+```
+
+---
+
+### SavePrompt Panel Flow
+
+```mermaid
+flowchart TD
+    A([App mount]) --> B{isAuthenticated?}
+    B -- yes --> Z([AuthArea hidden])
+    B -- no --> C{hasSeenFirstRun?}
+    C -- no --> D[SavePrompt auto-opens\npanel: choice]
+    C -- yes --> E[Mail icon visible\nno auto-open]
+
+    E -- user clicks icon --> D
+
+    D -- Not now --> F[markFirstRunSeen\nclose popover\ntoast: save via icon]
+    D -- Yes set me up --> G[panel: email]
+
+    G -- submit email --> H{POST /users/check-email}
+    H -- hasData: false --> I[signInWithEmail\npanel: sent]
+    H -- hasData: true --> J[panel: merge-confirm]
+
+    J -- Cancel --> G
+    J -- Merge & continue --> I[signInWithEmail\npanel: sent]
+
+    I --> K([User clicks magic link\nin email])
+    K --> L[onAuthStateChange fires\nsession + workspaceId set]
+    L --> M{hasLocalData?}
+    M -- yes --> N([MigrationBoundary\ntriggers useMigration])
+    M -- no --> O([App in API mode\nno migration needed])
+```
+
+---
+
+### Migration Sequence
+
+```mermaid
+sequenceDiagram
+    participant App as MigrationBoundary
+    participant LS as localStorage
+    participant Modal as TaskEditModal
+    participant API as POST /migrate
+    participant DB as PostgreSQL
+
+    Note over App: isAuthenticated && workspaceId && hasLocalData()
+
+    App->>Modal: dispatch 'fulfill:flush-edits'
+    Modal->>LS: write any unsaved dirty state
+
+    App->>LS: readColumns() + readSprints() + readTasks()
+    LS-->>App: { columns[], sprints[], tasks[] }
+
+    App->>App: setStatus('migrating')
+    Note over App: MigrationOverlay shown — UI blocked
+
+    App->>API: POST /workspaces/{wid}/migrate\n{ columns, sprints, tasks }
+
+    API->>DB: BEGIN TRANSACTION
+
+    API->>DB: SELECT existing columns\nfor workspace
+    DB-->>API: serverColumns[]
+    Note over API: Dedup by name+semanticStatus\nbuild colIdMap
+
+    API->>DB: INSERT new columns
+    API->>DB: INSERT sprints (always new)\nbuild sprintIdMap
+
+    API->>DB: Remap task references\ncolumnId → colIdMap\nsprintId → sprintIdMap\nparentId → taskIdMap\npredecessorIds → taskIdMap (drop missing)
+
+    API->>DB: INSERT tasks (all, in order)
+    API->>DB: COMMIT
+
+    DB-->>API: success
+    API-->>App: 200 { success: true }
+
+    App->>LS: clearLocalData()
+    App->>App: queryClient.invalidateQueries()
+    App->>App: setStatus('idle')
+    Note over App: Overlay hidden — app switches to API mode
+
+    alt Network error or timeout (60s)
+        API-->>App: error / timeout
+        App->>App: setStatus('error')
+        Note over App: Overlay shows Retry button\nLocalStorage preserved
+        App-->>App: user clicks Retry → restart from flush-edits
+    end
+```
+
+---
+
+### TaskContext Storage Switching
+
+```mermaid
+flowchart LR
+    subgraph Always["Always called (React hook rules)"]
+        LS[useLocalTaskStore\nbacked by localStorage\nloading always false]
+        API[useApiTaskStore\nbacked by React Query\nenabled only when workspaceId set]
+    end
+
+    AUTH[AuthContext\nisAuthenticated\nworkspaceId]
+
+    AUTH -->|false| LS
+    AUTH -->|true| API
+
+    LS --> CTX[TaskContext\nunified interface\ntasks · sprints · columns\naddTask · updateTask · etc.]
+    API --> CTX
+
+    CTX --> Pages[All pages\nTo-Do · Kanban · Sprints\nPoker · Charts · Done · Trash]
+
+    note1["Local IDs: crypto.randomUUID()"]
+    note2["API IDs: server-assigned UUID\nOptimistic: 'optimistic-{ts}-{rand}'"]
+    LS --- note1
+    API --- note2
+```
+
+---
+
+### Data Model (Entity Relationship)
+
+```mermaid
+erDiagram
+    USERS {
+        uuid id PK
+        text email UK
+        timestamp createdAt
+    }
+
+    WORKSPACES {
+        uuid id PK
+        text name
+        uuid ownerId FK
+        timestamp createdAt
+    }
+
+    COLUMNS {
+        uuid id PK
+        uuid workspaceId FK
+        text name
+        int order
+        text semanticStatus
+        text color
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    SPRINTS {
+        uuid id PK
+        uuid workspaceId FK
+        text name
+        text startDate
+        text endDate
+        boolean isActive
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    TASKS {
+        uuid id PK
+        uuid workspaceId FK
+        text title
+        text notes
+        uuid columnId FK
+        uuid sprintId FK
+        int storyPoints
+        int order
+        text dueDate
+        timestamp inProgressAt
+        timestamp archivedAt
+        timestamp deletedAt
+        text parentId
+        text[] predecessorIds
+        text[] tags
+        text reminder
+        text reminderDismissedAt
+        text recurrence
+        timestamp createdAt
+        timestamp updatedAt
+    }
+
+    SPRINT_SNAPSHOTS {
+        uuid id PK
+        uuid workspaceId FK
+        uuid sprintId FK
+        text date
+        int total
+        int done
+        timestamp createdAt
+    }
+
+    USERS ||--o{ WORKSPACES : owns
+    WORKSPACES ||--o{ COLUMNS : contains
+    WORKSPACES ||--o{ SPRINTS : contains
+    WORKSPACES ||--o{ TASKS : contains
+    WORKSPACES ||--o{ SPRINT_SNAPSHOTS : contains
+    COLUMNS ||--o{ TASKS : "current column"
+    SPRINTS ||--o{ TASKS : "assigned to"
+    SPRINTS ||--o{ SPRINT_SNAPSHOTS : "snapshot for"
+    TASKS ||--o{ TASKS : "parent of (parentId)"
+```
+
+> **Note:** `parentId` and `predecessorIds` are stored as plain text/text[] — not database foreign keys. Referential integrity for these fields is enforced at the application layer only.
+
+---
+
+### Component Integration Map
+
+```mermaid
+flowchart TB
+    subgraph Providers["React Providers (App.tsx)"]
+        QCP[QueryClientProvider]
+        AP[AuthProvider\nAuthContext]
+        TP[TaskProvider\nTaskContext]
+        MB[MigrationBoundary\nuseMigration hook]
+    end
+
+    subgraph Layout["Layout.tsx"]
+        AA[AuthArea\nMail icon + SavePrompt]
+        RB[ReminderBanner]
+        NAV[Sidebar Nav]
+    end
+
+    subgraph Pages
+        TDL[To-Do List /]
+        KB[Kanban Board /kanban]
+        SM[Sprint Management /sprints]
+        PP[Planning Poker /planning-poker]
+        CH[Charts /charts]
+        DF[Done Folder /done]
+        TB[Trash Bin /trash]
+    end
+
+    subgraph Auth["Auth Components"]
+        SP[SavePrompt\n4-panel popover]
+        MO[MigrationOverlay\nmigrating · error]
+    end
+
+    subgraph Storage["Storage Layer"]
+        LSAPI[useLocalTaskStore\nlocalStorage]
+        RQAPI[useApiTaskStore\nReact Query + REST API]
+        LS[(localStorage)]
+        PG[(PostgreSQL)]
+    end
+
+    QCP --> AP --> TP --> MB
+
+    MB --> MO
+    MB --> Layout
+
+    Layout --> AA --> SP
+    Layout --> Pages
+
+    TP --> LSAPI --> LS
+    TP --> RQAPI --> PG
+
+    AP -->|isAuthenticated| TP
+```
+
+---
+
 ## Planned (NOT YET BUILT)
 
 - **Predecessors UI**: `predecessorIds[]` exists in schema but no UI yet
 - **Gantt view**: depends on predecessors UI
 - **Phone number / SMS OTP**: deferred; email magic link only for now
 - **Saved views / custom fields**: Enterprise tier only
-- **Phase 5 (Tests)**: Vitest unit tests for `localStore`, `useMigration`, `useLocalTaskStore`, `SavePrompt`

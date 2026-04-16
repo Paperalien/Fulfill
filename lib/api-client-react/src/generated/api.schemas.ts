@@ -315,6 +315,10 @@ export interface CreateSprintSnapshotRequest {
   done: number;
 }
 
+export type EnsurePersonalWorkspace200 = {
+  workspaceId: string;
+};
+
 export type DeleteColumnParams = {
   /**
    * The column ID to reassign tasks to before deleting this column.

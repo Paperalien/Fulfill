@@ -73,6 +73,14 @@ export function useLocalTaskStore(): TaskContextValue {
     updateTask(id, { deletedAt: new Date().toISOString() });
   }
 
+  function permanentDeleteTask(id: string): void {
+    setTasks((prev) => {
+      const next = prev.filter((t) => t.id !== id);
+      writeTasks(next);
+      return next;
+    });
+  }
+
   function undeleteTask(id: string): void {
     updateTask(id, { deletedAt: undefined });
   }
@@ -194,6 +202,7 @@ export function useLocalTaskStore(): TaskContextValue {
     addTask,
     updateTask,
     deleteTask,
+    permanentDeleteTask,
     undeleteTask,
     archiveTask,
     unarchiveTask,

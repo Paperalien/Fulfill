@@ -239,7 +239,7 @@ function BurnCharts() {
 
   const [selectedId, setSelectedId] = useState<string>(defaultSprint?.id ?? '');
   const selectedSprint = sprints.find((s) => s.id === selectedId);
-  const sprintSnapshots = allSnapshots.filter((s) => selectedId && true); // all passed down, filtered in buildBurnChartData
+  const sprintSnapshots = allSnapshots;
 
   if (sprints.length === 0) {
     return (

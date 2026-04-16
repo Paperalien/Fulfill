@@ -7,6 +7,7 @@ import {
   useCreateTask,
   useUpdateTask,
   useDeleteTask,
+  useDeleteTaskPermanent,
   useBulkArchiveTasks,
   useCreateColumn,
   useUpdateColumn,
@@ -86,6 +87,7 @@ export interface TaskContextValue {
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'order'>) => Task;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
+  permanentDeleteTask: (id: string) => void;
   undeleteTask: (id: string) => void;
   archiveTask: (id: string) => void;
   unarchiveTask: (id: string) => void;
@@ -139,6 +141,7 @@ function useApiTaskStore(workspaceId: string | null): TaskContextValue {
   const createTaskMutation = useCreateTask();
   const updateTaskMutation = useUpdateTask();
   const deleteTaskMutation = useDeleteTask();
+  const deleteTaskPermanentMutation = useDeleteTaskPermanent();
   const bulkArchiveMutation = useBulkArchiveTasks();
 
   const createColumnMutation = useCreateColumn();
@@ -295,6 +298,24 @@ function useApiTaskStore(workspaceId: string | null): TaskContextValue {
     );
 
     deleteTaskMutation.mutate(
+      { workspaceId: wid, taskId: id },
+      {
+        onError: () => { queryClient.setQueryData(tasksKey, previousTasks); },
+        onSettled: () => { queryClient.invalidateQueries({ queryKey: tasksKey }); },
+      },
+    );
+  }
+
+  function permanentDeleteTask(id: string): void {
+    if (!enabled) return;
+    const tasksKey = getGetTasksQueryKey(wid);
+
+    queryClient.cancelQueries({ queryKey: tasksKey });
+    const previousTasks = queryClient.getQueryData<ApiTask[]>(tasksKey);
+
+    queryClient.setQueryData<ApiTask[]>(tasksKey, (old) => (old ?? []).filter((t) => t.id !== id));
+
+    deleteTaskPermanentMutation.mutate(
       { workspaceId: wid, taskId: id },
       {
         onError: () => { queryClient.setQueryData(tasksKey, previousTasks); },
@@ -556,7 +577,7 @@ function useApiTaskStore(workspaceId: string | null): TaskContextValue {
 
   return {
     tasks, sprints, columns, loading,
-    addTask, updateTask, deleteTask, undeleteTask, archiveTask, unarchiveTask, archiveDoneTasks,
+    addTask, updateTask, deleteTask, permanentDeleteTask, undeleteTask, archiveTask, unarchiveTask, archiveDoneTasks,
     addSprint, updateSprint, deleteSprint,
     addColumn, updateColumn, deleteColumn, reorderColumns,
     getSemanticStatusForTask, doneColumnIds,

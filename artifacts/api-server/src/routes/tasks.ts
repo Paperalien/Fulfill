@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db } from "@workspace/db";
-import { tasksTable, columnsTable } from "@workspace/db/schema";
+import { tasksTable, columnsTable, sprintsTable } from "@workspace/db/schema";
 import { eq, and, inArray, isNull, asc, max } from "drizzle-orm";
 import {
   CreateTaskBody,
@@ -53,6 +53,27 @@ router.post("/", async (req, res) => {
   const body = parsed.data;
 
   try {
+    // Validate columnId and sprintId belong to this workspace
+    const [col] = await db
+      .select({ id: columnsTable.id })
+      .from(columnsTable)
+      .where(and(eq(columnsTable.id, body.columnId), eq(columnsTable.workspaceId, workspaceId)));
+    if (!col) {
+      res.status(400).json({ error: "Column not found in this workspace" });
+      return;
+    }
+
+    if (body.sprintId) {
+      const [sprint] = await db
+        .select({ id: sprintsTable.id })
+        .from(sprintsTable)
+        .where(and(eq(sprintsTable.id, body.sprintId), eq(sprintsTable.workspaceId, workspaceId)));
+      if (!sprint) {
+        res.status(400).json({ error: "Sprint not found in this workspace" });
+        return;
+      }
+    }
+
     // Compute order: max existing order + 1
     const [{ maxOrder }] = await db
       .select({ maxOrder: max(tasksTable.order) })
@@ -166,6 +187,29 @@ router.patch("/:taskId", async (req, res) => {
     if (!existing) {
       res.status(404).json({ error: "Task not found" });
       return;
+    }
+
+    // Validate cross-workspace references if provided
+    if (body.columnId && body.columnId !== existing.columnId) {
+      const [col] = await db
+        .select({ id: columnsTable.id })
+        .from(columnsTable)
+        .where(and(eq(columnsTable.id, body.columnId), eq(columnsTable.workspaceId, workspaceId)));
+      if (!col) {
+        res.status(400).json({ error: "Column not found in this workspace" });
+        return;
+      }
+    }
+
+    if (body.sprintId && body.sprintId !== existing.sprintId) {
+      const [sprint] = await db
+        .select({ id: sprintsTable.id })
+        .from(sprintsTable)
+        .where(and(eq(sprintsTable.id, body.sprintId), eq(sprintsTable.workspaceId, workspaceId)));
+      if (!sprint) {
+        res.status(400).json({ error: "Sprint not found in this workspace" });
+        return;
+      }
     }
 
     const now = new Date();
@@ -288,8 +332,46 @@ router.patch("/:taskId", async (req, res) => {
   }
 });
 
-// DELETE /:taskId — hard delete
+// DELETE /:taskId — soft-delete (sets deletedAt; task moves to Trash)
 router.delete("/:taskId", async (req, res) => {
+  const { workspaceId, taskId } = req.params as { workspaceId: string; taskId: string };
+
+  try {
+    const [existing] = await db
+      .select()
+      .from(tasksTable)
+      .where(
+        and(
+          eq(tasksTable.id, taskId),
+          eq(tasksTable.workspaceId, workspaceId)
+        )
+      );
+
+    if (!existing) {
+      res.status(404).json({ error: "Task not found" });
+      return;
+    }
+
+    const now = new Date();
+    await db
+      .update(tasksTable)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(tasksTable.id, taskId),
+          eq(tasksTable.workspaceId, workspaceId)
+        )
+      );
+
+    res.status(204).send();
+  } catch (err) {
+    req.log.error(err, "Failed to delete task");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE /:taskId/permanent — hard delete (removes row; used from Trash "Delete forever")
+router.delete("/:taskId/permanent", async (req, res) => {
   const { workspaceId, taskId } = req.params as { workspaceId: string; taskId: string };
 
   try {
@@ -319,7 +401,7 @@ router.delete("/:taskId", async (req, res) => {
 
     res.status(204).send();
   } catch (err) {
-    req.log.error(err, "Failed to delete task");
+    req.log.error(err, "Failed to permanently delete task");
     res.status(500).json({ error: "Internal server error" });
   }
 });

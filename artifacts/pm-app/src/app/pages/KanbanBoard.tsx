@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Plus, Archive, Settings, Trash2, ChevronUp, ChevronDown, Pencil, Bell, RefreshCw } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
@@ -39,6 +39,7 @@ function KanbanCard({ task, index, allTasks, columns }: { task: Task; index: num
             <button
               className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-all"
               title="Edit task"
+              aria-label="Edit task"
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); setShowEdit(true); }}
               data-testid={`kanban-edit-${task.id}`}
@@ -96,7 +97,10 @@ function ColumnManagerModal({ onClose }: { onClose: () => void }) {
   const [newSemantic, setNewSemantic] = useState<KanbanColumn['semanticStatus']>('not-started');
   const [newColor, setNewColor] = useState('gray');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<string>('');
   const [editingId, setEditingId] = useState<string | null>(null);
+
+  useEffect(() => { setReassignTarget(''); }, [deleteConfirm]);
   const [editName, setEditName] = useState('');
   const [editSemantic, setEditSemantic] = useState<KanbanColumn['semanticStatus']>('not-started');
   const [editColor, setEditColor] = useState('gray');
@@ -135,7 +139,7 @@ function ColumnManagerModal({ onClose }: { onClose: () => void }) {
       <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg shadow-xl max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold">Manage Columns</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
+          <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground text-xl leading-none">×</button>
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-2 mb-4">
@@ -164,12 +168,13 @@ function ColumnManagerModal({ onClose }: { onClose: () => void }) {
                     <p className="text-xs text-muted-foreground">{col.semanticStatus} · {col.color ?? 'gray'}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => handleMove(col.id, 'up')} disabled={idx === 0} className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp size={14} /></button>
-                    <button onClick={() => handleMove(col.id, 'down')} disabled={idx === sorted.length - 1} className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown size={14} /></button>
+                    <button onClick={() => handleMove(col.id, 'up')} disabled={idx === 0} aria-label="Move column up" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronUp size={14} /></button>
+                    <button onClick={() => handleMove(col.id, 'down')} disabled={idx === sorted.length - 1} aria-label="Move column down" className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"><ChevronDown size={14} /></button>
                     <button onClick={() => startEdit(col)} className="p-1 text-muted-foreground hover:text-foreground text-xs">Edit</button>
                     {sorted.length > 1 && (
                       <button
                         onClick={() => setDeleteConfirm(col.id)}
+                        aria-label="Delete column"
                         className="p-1 text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 size={12} />
@@ -206,17 +211,27 @@ function ColumnManagerModal({ onClose }: { onClose: () => void }) {
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-60">
             <div className="bg-card border border-border rounded-xl p-5 max-w-sm w-full shadow-xl">
               <p className="font-semibold mb-1">Delete column?</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                Tasks in this column will move to "{sorted.find((c) => c.id !== deleteConfirm)?.name ?? fallbackCol?.name}".
+              <p className="text-sm text-muted-foreground mb-3">
+                Move tasks from this column to:
               </p>
+              <select
+                value={reassignTarget}
+                onChange={(e) => setReassignTarget(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring mb-4"
+              >
+                <option value="">— select a column —</option>
+                {sorted.filter((c) => c.id !== deleteConfirm).map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    const fallback = sorted.find((c) => c.id !== deleteConfirm)?.id ?? '';
-                    deleteColumn(deleteConfirm, fallback);
+                    deleteColumn(deleteConfirm, reassignTarget);
                     setDeleteConfirm(null);
                   }}
-                  className="px-4 py-1.5 text-sm bg-destructive text-destructive-foreground rounded hover:opacity-90"
+                  disabled={!reassignTarget}
+                  className="px-4 py-1.5 text-sm bg-destructive text-destructive-foreground rounded hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Delete
                 </button>

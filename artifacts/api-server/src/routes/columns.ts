@@ -140,6 +140,33 @@ router.delete("/:columnId", async (req, res) => {
 
   const { reassignToId } = parsed.data;
 
+  // Validate source column exists in this workspace
+  const [sourceCol] = await db
+    .select({ id: columnsTable.id })
+    .from(columnsTable)
+    .where(and(eq(columnsTable.id, columnId), eq(columnsTable.workspaceId, workspaceId)));
+
+  if (!sourceCol) {
+    res.status(404).json({ error: "Column not found" });
+    return;
+  }
+
+  if (reassignToId === columnId) {
+    res.status(400).json({ error: "Cannot reassign to the same column" });
+    return;
+  }
+
+  // Validate reassign target exists in this workspace
+  const [targetCol] = await db
+    .select({ id: columnsTable.id })
+    .from(columnsTable)
+    .where(and(eq(columnsTable.id, reassignToId), eq(columnsTable.workspaceId, workspaceId)));
+
+  if (!targetCol) {
+    res.status(400).json({ error: "Reassignment column not found in this workspace" });
+    return;
+  }
+
   await db.transaction(async (tx) => {
     // Reassign all tasks from deleted column to reassignToId
     await tx

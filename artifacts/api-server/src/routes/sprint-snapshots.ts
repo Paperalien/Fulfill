@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and, asc } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { sprintSnapshotsTable } from "@workspace/db/schema";
+import { sprintSnapshotsTable, sprintsTable } from "@workspace/db/schema";
 import {
   GetSprintSnapshotsQueryParams,
   UpsertSprintSnapshotBody,
@@ -58,6 +58,17 @@ router.post("/", async (req, res) => {
   }
 
   const { sprintId, date, total, done } = parsed.data;
+
+  // Validate sprint belongs to this workspace
+  const [sprint] = await db
+    .select({ id: sprintsTable.id })
+    .from(sprintsTable)
+    .where(and(eq(sprintsTable.id, sprintId), eq(sprintsTable.workspaceId, workspaceId)));
+
+  if (!sprint) {
+    res.status(400).json({ error: "Sprint not found in this workspace" });
+    return;
+  }
 
   const [snapshot] = await db
     .insert(sprintSnapshotsTable)

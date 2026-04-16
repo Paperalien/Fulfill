@@ -66,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (response.ok) {
         const data = await response.json();
-        setWorkspaceId(data.workspaceId ?? data.id ?? null);
+        setWorkspaceId(data.workspaceId ?? null);
       }
     } catch (err) {
       console.error('Failed to ensure personal workspace:', err);

@@ -56,7 +56,7 @@ router.post("/ensure-personal", async (req, res) => {
       );
     });
 
-    res.status(201).json({ workspaceId });
+    res.status(200).json({ workspaceId });
   } catch (err) {
     req.log.error(err, "Failed to ensure personal workspace");
     res.status(500).json({ error: "Internal server error" });

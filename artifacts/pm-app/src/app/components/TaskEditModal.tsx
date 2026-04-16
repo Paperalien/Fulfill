@@ -66,7 +66,7 @@ export function TaskEditModal({ task, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h3 className="text-base font-semibold">Edit Task</h3>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground transition-colors">
             <X size={18} />
           </button>
         </div>

@@ -26,6 +26,7 @@ import type {
   CreateSprintSnapshotRequest,
   CreateTaskRequest,
   DeleteColumnParams,
+  EnsurePersonalWorkspace200,
   GetSprintSnapshotsParams,
   HealthStatus,
   MigrateLocalDataRequest,
@@ -38,7 +39,6 @@ import type {
   UpdateColumnRequest,
   UpdateSprintRequest,
   UpdateTaskRequest,
-  Workspace,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -214,7 +214,7 @@ export const useCheckEmail = <
 };
 
 /**
- * Creates a personal workspace for the authenticated user if one does not already exist, then returns it.
+ * Creates a personal workspace for the authenticated user if one does not already exist, then returns it. Always returns 200 regardless of whether the workspace was created or already existed.
  * @summary Ensure personal workspace exists
  */
 export const getEnsurePersonalWorkspaceUrl = () => {
@@ -223,11 +223,14 @@ export const getEnsurePersonalWorkspaceUrl = () => {
 
 export const ensurePersonalWorkspace = async (
   options?: RequestInit,
-): Promise<Workspace> => {
-  return customFetch<Workspace>(getEnsurePersonalWorkspaceUrl(), {
-    ...options,
-    method: "POST",
-  });
+): Promise<EnsurePersonalWorkspace200> => {
+  return customFetch<EnsurePersonalWorkspace200>(
+    getEnsurePersonalWorkspaceUrl(),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
 };
 
 export const getEnsurePersonalWorkspaceMutationOptions = <
@@ -1583,6 +1586,95 @@ export const useDeleteTask = <
   TContext
 > => {
   return useMutation(getDeleteTaskMutationOptions(options));
+};
+
+/**
+ * Hard-deletes a task, removing it from the database entirely. Intended for use from the Trash Bin "Delete forever" action. The task must already be soft-deleted (deletedAt set).
+ * @summary Permanently delete a task
+ */
+export const getDeleteTaskPermanentUrl = (
+  workspaceId: string,
+  taskId: string,
+) => {
+  return `/api/workspaces/${workspaceId}/tasks/${taskId}/permanent`;
+};
+
+export const deleteTaskPermanent = async (
+  workspaceId: string,
+  taskId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteTaskPermanentUrl(workspaceId, taskId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteTaskPermanentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTaskPermanent>>,
+    TError,
+    { workspaceId: string; taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTaskPermanent>>,
+  TError,
+  { workspaceId: string; taskId: string },
+  TContext
+> => {
+  const mutationKey = ["deleteTaskPermanent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTaskPermanent>>,
+    { workspaceId: string; taskId: string }
+  > = (props) => {
+    const { workspaceId, taskId } = props ?? {};
+
+    return deleteTaskPermanent(workspaceId, taskId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTaskPermanentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTaskPermanent>>
+>;
+
+export type DeleteTaskPermanentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Permanently delete a task
+ */
+export const useDeleteTaskPermanent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTaskPermanent>>,
+    TError,
+    { workspaceId: string; taskId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTaskPermanent>>,
+  TError,
+  { workspaceId: string; taskId: string },
+  TContext
+> => {
+  return useMutation(getDeleteTaskPermanentMutationOptions(options));
 };
 
 /**
