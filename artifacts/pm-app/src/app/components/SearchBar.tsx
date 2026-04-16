@@ -8,6 +8,7 @@ interface Props {
   sortField: SearchField;
   sortOrder: SortOrder;
   onSortChange: (field: SearchField, order: SortOrder) => void;
+  showSort?: boolean;
 }
 
 const DATE_FIELDS: SearchField[] = ['dueDate', 'inProgressAt', 'createdAt'];
@@ -30,7 +31,7 @@ const FIELD_OPTIONS: { value: SearchField; label: string }[] = [
   { value: 'createdAt', label: 'Created Date' },
 ];
 
-export function SearchBar({ search, onSearchChange, sortField, sortOrder, onSortChange }: Props) {
+export function SearchBar({ search, onSearchChange, sortField, sortOrder, onSortChange, showSort = true }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const isDate = DATE_FIELDS.includes(search.field);
 
@@ -113,16 +114,18 @@ export function SearchBar({ search, onSearchChange, sortField, sortOrder, onSort
       </div>
 
       {/* Sort */}
-      <button
-        onClick={cycleSortOrder}
-        className="h-9 px-3 rounded-md border border-border bg-background text-sm hover:bg-muted transition-colors flex items-center gap-1"
-        title="Toggle sort"
-      >
-        <span className="text-muted-foreground">Sort:</span>
-        <span className="font-medium">{SORT_FIELD_LABELS[sortField]}</span>
-        <span className="text-muted-foreground text-xs">{getSortLabel(sortField, sortOrder)}</span>
-        <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-      </button>
+      {showSort && (
+        <button
+          onClick={cycleSortOrder}
+          className="h-9 px-3 rounded-md border border-border bg-background text-sm hover:bg-muted transition-colors flex items-center gap-1"
+          title="Toggle sort"
+        >
+          <span className="text-muted-foreground">Sort:</span>
+          <span className="font-medium">{SORT_FIELD_LABELS[sortField]}</span>
+          <span className="text-muted-foreground text-xs">{getSortLabel(sortField, sortOrder)}</span>
+          <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+        </button>
+      )}
     </div>
   );
 }

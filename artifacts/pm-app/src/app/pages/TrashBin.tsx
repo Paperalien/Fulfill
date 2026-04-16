@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
-import { SearchState } from '../types/task';
+import { SearchState, SearchField, SortOrder } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
+import { sortTasksByField } from '../utils/sortUtils';
 import { SearchBar } from '../components/SearchBar';
 
 const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: 'eq' };
@@ -11,6 +12,8 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 export default function TrashBin() {
   const { tasks, columns, undeleteTask, permanentDeleteTask } = useTaskContext();
   const [search, setSearch] = useState<SearchState>(DEFAULT_SEARCH);
+  const [sortField, setSortField] = useState<SearchField>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
   const [confirmPermanent, setConfirmPermanent] = useState<string | null>(null);
 
   const now = Date.now();
@@ -22,7 +25,12 @@ export default function TrashBin() {
     })
     .sort((a, b) => (b.deletedAt! > a.deletedAt! ? 1 : -1));
 
-  const filtered = filterTasks(trashedTasks, columns, search.field, search.value, search.dateOperator);
+  const filtered = sortTasksByField(
+    filterTasks(trashedTasks, columns, search.field, search.value, search.dateOperator),
+    columns,
+    sortField,
+    sortOrder,
+  );
 
   const daysRemaining = (deletedAt: string) => {
     const ms = THIRTY_DAYS_MS - (now - new Date(deletedAt).getTime());
@@ -39,7 +47,7 @@ export default function TrashBin() {
       <div className="flex items-center gap-3 px-4 py-3 mb-4 border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 rounded-lg">
         <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
         <p className="text-sm text-amber-700 dark:text-amber-300">
-          Deleted tasks are retained for 30 days, then permanently removed. Restore a task to save it.
+          Deleted tasks are kept here for up to 30 days. Restore to keep them, or delete forever.
         </p>
       </div>
 
@@ -47,9 +55,9 @@ export default function TrashBin() {
         <SearchBar
           search={search}
           onSearchChange={setSearch}
-          sortField="title"
-          sortOrder="asc"
-          onSortChange={() => {}}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onSortChange={(f, o) => { setSortField(f); setSortOrder(o); }}
         />
       </div>
 
@@ -58,7 +66,7 @@ export default function TrashBin() {
           <div className="py-12 text-center text-muted-foreground">
             <Trash2 size={40} className="mx-auto mb-3 opacity-20" />
             <p className="text-base">Trash is empty</p>
-            <p className="text-sm mt-1">Deleted tasks will appear here for 30 days.</p>
+            <p className="text-sm mt-1">Deleted tasks will appear here.</p>
           </div>
         ) : (
           filtered.map((task) => {

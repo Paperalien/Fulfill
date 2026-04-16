@@ -248,8 +248,6 @@ function ColumnManagerModal({ onClose }: { onClose: () => void }) {
 export default function KanbanBoard() {
   const { tasks, columns, addTask, updateTask, archiveDoneTasks, doneColumnIds } = useTaskContext();
   const [search, setSearch] = useState<SearchState>(DEFAULT_SEARCH);
-  const [sortField] = useState<'title'>('title');
-  const [sortOrder] = useState<'asc'>('asc');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addTitle, setAddTitle] = useState('');
   const [addNotes, setAddNotes] = useState('');
@@ -324,9 +322,10 @@ export default function KanbanBoard() {
         <SearchBar
           search={search}
           onSearchChange={setSearch}
-          sortField={sortField}
-          sortOrder={sortOrder}
+          sortField="title"
+          sortOrder="asc"
           onSortChange={() => {}}
+          showSort={false}
         />
       </div>
 

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ArchiveX, Trash2 } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
-import { SearchState } from '../types/task';
+import { SearchState, SearchField, SortOrder } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
+import { sortTasksByField } from '../utils/sortUtils';
 import { getColumnName } from '../utils/taskUtils';
 import { SearchBar } from '../components/SearchBar';
 import { TagBadge } from '../components/TagInput';
@@ -12,12 +13,19 @@ const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: '
 export default function DoneFolder() {
   const { tasks, sprints, columns, unarchiveTask, deleteTask } = useTaskContext();
   const [search, setSearch] = useState<SearchState>(DEFAULT_SEARCH);
+  const [sortField, setSortField] = useState<SearchField>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   const archivedTasks = tasks
     .filter((t) => t.archivedAt && !t.deletedAt)
     .sort((a, b) => (b.archivedAt! > a.archivedAt! ? 1 : -1));
 
-  const filtered = filterTasks(archivedTasks, columns, search.field, search.value, search.dateOperator);
+  const filtered = sortTasksByField(
+    filterTasks(archivedTasks, columns, search.field, search.value, search.dateOperator),
+    columns,
+    sortField,
+    sortOrder,
+  );
 
   const getSprintName = (sprintId?: string) =>
     sprintId ? (sprints.find((s) => s.id === sprintId)?.name ?? 'Unknown sprint') : null;
@@ -33,9 +41,9 @@ export default function DoneFolder() {
         <SearchBar
           search={search}
           onSearchChange={setSearch}
-          sortField="title"
-          sortOrder="asc"
-          onSortChange={() => {}}
+          sortField={sortField}
+          sortOrder={sortOrder}
+          onSortChange={(f, o) => { setSortField(f); setSortOrder(o); }}
         />
       </div>
 
