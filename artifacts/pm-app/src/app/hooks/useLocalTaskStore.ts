@@ -5,7 +5,7 @@ import {
   readSprints, writeSprints,
   readColumns, writeColumns,
 } from '../lib/localStore';
-import { getSemanticStatus } from '../utils/taskUtils';
+import { getSemanticStatus, computeNextDueDate } from '../utils/taskUtils';
 import type { TaskContextValue } from '../contexts/TaskContext';
 
 export function useLocalTaskStore(): TaskContextValue {
@@ -45,6 +45,8 @@ export function useLocalTaskStore(): TaskContextValue {
   function updateTask(id: string, updates: Partial<Task>): void {
     setTasks((prev) => {
       const now = new Date().toISOString();
+      let spawned: Task | null = null;
+
       const next = prev.map((t) => {
         if (t.id !== id) return t;
 
@@ -60,10 +62,50 @@ export function useLocalTaskStore(): TaskContextValue {
           } else if (newCol?.semanticStatus !== 'in-progress') {
             inProgressAt = undefined;
           }
+
+          // Recurrence spawning: moving to a done column + task has recurrence → spawn next occurrence
+          if (newCol?.semanticStatus === 'done') {
+            const updatedTask = { ...t, ...updates, inProgressAt, updatedAt: now };
+            if (updatedTask.recurrence) {
+              const firstNotStartedCol = [...columns]
+                .filter((c) => c.semanticStatus === 'not-started')
+                .sort((a, b) => a.order - b.order)[0];
+              if (firstNotStartedCol) {
+                spawned = {
+                  id: crypto.randomUUID(),
+                  title: updatedTask.title,
+                  notes: updatedTask.notes,
+                  columnId: firstNotStartedCol.id,
+                  sprintId: updatedTask.sprintId,
+                  storyPoints: updatedTask.storyPoints,
+                  order: 0, // fixed after map
+                  dueDate: computeNextDueDate(updatedTask),
+                  inProgressAt: undefined,
+                  archivedAt: undefined,
+                  deletedAt: undefined,
+                  parentId: updatedTask.parentId,
+                  predecessorIds: updatedTask.predecessorIds,
+                  tags: updatedTask.tags,
+                  reminder: updatedTask.reminder,
+                  reminderDismissedAt: undefined,
+                  recurrence: updatedTask.recurrence,
+                  createdAt: now,
+                  updatedAt: now,
+                };
+              }
+            }
+          }
         }
 
         return { ...t, ...updates, inProgressAt, updatedAt: now };
       });
+
+      if (spawned) {
+        const maxOrder = next.reduce((m, t) => Math.max(m, t.order), -1);
+        (spawned as Task).order = maxOrder + 1;
+        next.push(spawned as Task);
+      }
+
       writeTasks(next);
       return next;
     });

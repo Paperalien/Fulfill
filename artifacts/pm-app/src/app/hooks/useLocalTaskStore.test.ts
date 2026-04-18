@@ -193,6 +193,70 @@ describe('deleteColumn', () => {
   });
 });
 
+// ── updateTask / recurrence spawning ─────────────────────────────────────────
+
+describe('updateTask / recurrence spawning', () => {
+  it('spawns a new task when moving a recurring task to a done column', () => {
+    const { result } = renderHook(() => useLocalTaskStore());
+    let task: Task;
+    act(() => {
+      task = result.current.addTask(makeTask({ columnId: TODO_COL.id, recurrence: 'weekly', dueDate: '2025-01-01' }));
+    });
+    act(() => { result.current.updateTask(task.id, { columnId: DONE_COL.id }); });
+
+    expect(result.current.tasks).toHaveLength(2);
+    const spawned = result.current.tasks.find((t) => t.id !== task.id)!;
+    expect(spawned).toBeDefined();
+    expect(spawned.recurrence).toBe('weekly');
+    expect(spawned.dueDate).toBe('2025-01-08');
+    expect(spawned.archivedAt).toBeUndefined();
+    expect(spawned.deletedAt).toBeUndefined();
+  });
+
+  it('spawned task lands in the first not-started column', () => {
+    const { result } = renderHook(() => useLocalTaskStore());
+    let task: Task;
+    act(() => {
+      task = result.current.addTask(makeTask({ columnId: TODO_COL.id, recurrence: 'daily' }));
+    });
+    act(() => { result.current.updateTask(task.id, { columnId: DONE_COL.id }); });
+
+    const spawned = result.current.tasks.find((t) => t.id !== task.id)!;
+    expect(spawned.columnId).toBe(TODO_COL.id); // first not-started column
+  });
+
+  it('does not spawn when moving to a non-done column', () => {
+    const { result } = renderHook(() => useLocalTaskStore());
+    let task: Task;
+    act(() => {
+      task = result.current.addTask(makeTask({ columnId: TODO_COL.id, recurrence: 'weekly' }));
+    });
+    act(() => { result.current.updateTask(task.id, { columnId: IN_PROG_COL.id }); });
+
+    expect(result.current.tasks).toHaveLength(1);
+  });
+
+  it('does not spawn for non-recurring tasks moved to done', () => {
+    const { result } = renderHook(() => useLocalTaskStore());
+    let task: Task;
+    act(() => { task = result.current.addTask(makeTask({ columnId: TODO_COL.id })); });
+    act(() => { result.current.updateTask(task.id, { columnId: DONE_COL.id }); });
+
+    expect(result.current.tasks).toHaveLength(1);
+  });
+
+  it('persists spawned task to localStorage', () => {
+    const { result } = renderHook(() => useLocalTaskStore());
+    let task: Task;
+    act(() => {
+      task = result.current.addTask(makeTask({ columnId: TODO_COL.id, recurrence: 'daily' }));
+    });
+    act(() => { result.current.updateTask(task.id, { columnId: DONE_COL.id }); });
+
+    expect(readTasks()).toHaveLength(2);
+  });
+});
+
 // ── reorderColumns ───────────────────────────────────────────────────────────
 
 describe('reorderColumns', () => {

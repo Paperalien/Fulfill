@@ -5,10 +5,17 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "check:drift": "tsx ./src/check-api-drift.ts",
+    "check:schema": "tsx ./src/check-schema-safety.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@types/js-yaml": "catalog:",
     "@types/node": "catalog:",
-    "tsx": "catalog:"
+    "js-yaml": "catalog:",
+    "tsx": "catalog:",
+    "vitest": "catalog:"
   }
 }

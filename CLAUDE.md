@@ -180,6 +180,13 @@ VITE_SUPABASE_ANON_KEY=...
 - **Run tests before committing.** Always run `pnpm -F @workspace/pm-app test` before creating a commit that touches `artifacts/pm-app/`. All tests must pass. If a test fails, fix it or (if the test is wrong) update it with a clear reason — do not skip or disable tests to make the commit pass.
 - **Test file conventions:** co-locate test files with their source (`localStore.test.ts` next to `localStore.ts`); use `vi.hoisted()` for mock refs that need to be shared across `vi.mock()` factories; use `happy-dom` (configured globally via `vite.config.ts`).
 
+## Pre-commit Checklist
+
+Before every `git commit`, run `pnpm run typecheck` and ensure it exits clean. **This includes pre-existing errors** — do not commit if any typecheck errors exist, even ones not introduced by the current change. Fix all errors first. If an error cannot be fixed (e.g. it requires regenerating code via `/codegen` or `/db-push` that isn't safe to run in the current context), stop the task and explain clearly:
+- What the error is
+- Why it cannot be fixed right now
+- What the user needs to do to resolve it before the commit can proceed
+
 ## TypeScript
 
 - All packages use composite project references; `pnpm run typecheck` from the root runs them all
