@@ -193,6 +193,89 @@ Before every `git commit`, run `pnpm run typecheck` and ensure it exits clean. *
 - Only `.d.ts` files are emitted during typecheck (`emitDeclarationOnly`)
 - Never run `tsc --noEmit` per-package when you can run the root typecheck
 
+## Deployment Architecture
+
+Fulfill is deployed at **https://paperalien.com/fulfill**. A single Fly.io machine serves both the Express API (`/api/*`) and the React SPA (`/fulfill`) as static files baked into the Docker image at build time. Cloudflare sits in front as a free DNS proxy and SSL terminator, which avoids the need for a dedicated IP address on Fly.io. GoDaddy retains the `paperalien.com` domain registration and Microsoft 365 email (MX records are untouched); the nameservers now point to Cloudflare. Supabase provides Postgres (via Drizzle ORM) and authentication (magic links, JWT validation). The frontend is built with `BASE_PATH=/fulfill` so Vite produces correct asset paths for the subdirectory.
+
+```
+You push / merge to main branch
+        │
+        ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              GITHUB ACTIONS  (github.com servers)               │
+│                   fresh Linux VM per deploy                     │
+│                                                                 │
+│  pnpm install                                                   │
+│  pnpm run typecheck              ── fail → stop, no deploy      │
+│  pnpm -F @workspace/pm-app test  ── fail → stop, no deploy      │
+│  pnpm check:drift   (Agent A)    ── fail → stop, no deploy      │
+│  pnpm check:schema  (Agent B)    ── fail → stop, no deploy      │
+│  flyctl deploy --remote-only                                    │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ (only if all checks pass)
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                         YOUR BROWSER                            │
+│                   https://paperalien.com/fulfill                │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ HTTPS
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     CLOUDFLARE  (free)                          │
+│                                                                 │
+│  • Holds DNS for paperalien.com (nameservers moved from GoDaddy)│
+│  • CNAME flattening: paperalien.com → fulfill-paperalien.fly.dev│
+│  • Issues SSL cert for paperalien.com                           │
+│  • Email MX records untouched — routes to GoDaddy/Microsoft 365 │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │ HTTPS (Fly's *.fly.dev cert, SSL mode: Full)
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              FLY.IO  (fulfill-paperalien, 256 MB shared)        │
+│                     Express 5 server, port 3000                 │
+│                                                                 │
+│   /fulfill/*  ──► serves React SPA (built into Docker image)   │
+│   /api/*      ──► Express routes                               │
+└────────────────────┬──────────────────────┬─────────────────────┘
+                     │                      │
+                     ▼                      ▼
+        ┌────────────────────┐   ┌─────────────────────┐
+        │   SUPABASE AUTH    │   │  SUPABASE POSTGRES  │
+        │                    │   │                     │
+        │  Magic link email  │   │  Tasks, columns,    │
+        │  JWT validation    │   │  sprints, workspaces│
+        │  Session tokens    │   │  (Drizzle ORM)      │
+        └────────────────────┘   └─────────────────────┘
+```
+
+### Maintenance Commands
+
+**Fly.io** (`brew install flyctl`, then `fly auth login`):
+
+```bash
+fly deploy                        # Build and deploy latest code
+fly logs                          # Tail live logs
+fly status                        # Show running instances and health
+fly ssh console                   # Shell into a running instance
+fly secrets set KEY=VALUE         # Add or update an environment variable
+fly secrets list                  # List secret names (values are never shown)
+fly releases                      # Deployment history
+```
+
+**Cloudflare:** No useful CLI for DNS/SSL management — use the dashboard at dash.cloudflare.com. (`wrangler` CLI is for Cloudflare Workers; not relevant here.)
+
+**Database:** This project uses Drizzle Kit, not the Supabase CLI, for schema changes.
+
+```bash
+# Local dev
+pnpm -F @workspace/db run push
+
+# Production (run inside the Fly machine after deploy)
+fly ssh console
+pnpm -F @workspace/db run push
+exit
+```
+
 ## Available Skills
 
 - `/dev` — start api-server + pm-app in parallel

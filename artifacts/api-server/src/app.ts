@@ -1,8 +1,14 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { fileURLToPath } from "url";
+import path from "path";
 import router from "./routes";
 import { logger } from "./lib/logger";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const frontendDist = process.env['FRONTEND_DIST']
+  ?? path.join(__dirname, '../../pm-app-dist');
 
 const app: Express = express();
 
@@ -42,6 +48,11 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 app.use("/api", router);
+
+app.use('/fulfill', express.static(frontendDist));
+app.get('/fulfill/*splat', (_req, res) => {
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 
 // Global error handler — catches any unhandled throws from route handlers
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
