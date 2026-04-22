@@ -20,10 +20,9 @@ primary_region = 'lax'
   cpus = 1
   memory_mb = 256
 
-[http_service.checks]
-  [http_service.checks.health]
-    type = "http"
-    path = "/api/healthz"
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "10s"
+[[http_service.checks]]
+  type = "http"
+  path = "/api/healthz"
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
