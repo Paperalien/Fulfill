@@ -8,6 +8,9 @@ primary_region = 'lax'
 
 [build]
 
+[deploy]
+  release_command = "pnpm -F @workspace/db run push"
+
 [http_service]
   internal_port = 3000
   force_https = true
