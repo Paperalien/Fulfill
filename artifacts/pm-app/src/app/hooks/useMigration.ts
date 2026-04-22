@@ -32,7 +32,7 @@ export function useMigration() {
       const token = session?.access_token;
       if (!token) throw new Error('No access token');
 
-      const baseUrl = (import.meta.env.VITE_API_BASE_URL as string).replace(/\/+$/, '');
+      const baseUrl = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').replace(/\/+$/, '');
 
       const columns = readColumns();
       const sprints = readSprints();

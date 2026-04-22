@@ -44,7 +44,7 @@ export function SavePrompt({ open, onOpenChange }: Props) {
       // If there's local data, check whether this email already has server data.
       // If so, show the merge-confirm panel before sending the OTP.
       if (hasLocalData()) {
-        const baseUrl = (import.meta.env.VITE_API_BASE_URL as string).replace(/\/+$/, '');
+        const baseUrl = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').replace(/\/+$/, '');
         const resp = await fetch(`${baseUrl}/api/users/check-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
