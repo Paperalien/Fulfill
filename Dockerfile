@@ -7,7 +7,13 @@ COPY . .
 
 RUN pnpm install --frozen-lockfile
 
-RUN BASE_PATH=/fulfill pnpm -F @workspace/pm-app run build
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+
+RUN BASE_PATH=/fulfill \
+    VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
+    VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
+    pnpm -F @workspace/pm-app run build
 
 RUN pnpm -F @workspace/api-server run build
 
