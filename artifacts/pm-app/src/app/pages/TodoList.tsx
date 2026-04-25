@@ -4,7 +4,7 @@ import { useTaskContext } from '../contexts/TaskContext';
 import { Task, SearchState, SortOrder, SearchField } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
 import { sortTasksByField } from '../utils/sortUtils';
-import { getSubtasks, getSubtaskProgress, isDone, isReminderActive } from '../utils/taskUtils';
+import { getSubtasks, getSubtaskProgress, isReminderActive } from '../utils/taskUtils';
 import { SearchBar } from '../components/SearchBar';
 import { TagBadge, TagInput } from '../components/TagInput';
 import { InProgressBadge } from '../components/InProgressBadge';
@@ -62,6 +62,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   const doneCols = new Set(doneColumnIds());
   const todoColId = columns.find((c) => c.semanticStatus === 'not-started')?.id ?? columns[0]?.id;
   const doneColId = columns.find((c) => c.semanticStatus === 'done')?.id ?? columns[columns.length - 1]?.id;
+  const inProgressColId = columns.find((c) => c.semanticStatus === 'in-progress')?.id;
   const isTaskDone = doneCols.has(task.columnId);
 
   const subtasks = getSubtasks(task.id, allTasks);
@@ -74,6 +75,15 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   const handleSave = () => {
     updateTask(task.id, { title, notes, storyPoints, dueDate: dueDate || undefined, tags, reminder, recurrence });
     setEditing(false);
+  };
+
+  const handleToggleInProgress = () => {
+    const col = columns.find((c) => c.id === task.columnId);
+    if (col?.semanticStatus === 'in-progress') {
+      updateTask(task.id, { columnId: todoColId });
+    } else if (col?.semanticStatus === 'not-started' && inProgressColId) {
+      updateTask(task.id, { columnId: inProgressColId });
+    }
   };
 
   const handleAddSubtask = () => {
@@ -163,7 +173,7 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.notes}</p>
               )}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <InProgressBadge task={task} columns={columns} />
+                <InProgressBadge task={task} columns={columns} onClick={handleToggleInProgress} />
                 {task.storyPoints && (
                   <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
                     {task.storyPoints} pts
@@ -251,11 +261,13 @@ export default function TodoList() {
   const [newPoints, setNewPoints] = useState<number | undefined>();
   const [newDue, setNewDue] = useState('');
   const [newTags, setNewTags] = useState<string[]>([]);
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [newReminder, setNewReminder] = useState<Task['reminder']>(undefined);
+  const [newRecurrence, setNewRecurrence] = useState<Task['recurrence']>(undefined);
+  const [showInlineAdd, setShowInlineAdd] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
 
   const todoColId = columns.find((c) => c.semanticStatus === 'not-started')?.id ?? columns[0]?.id ?? 'col-todo';
 
-  // Root tasks only (no parentId), active, not archived/deleted
   const activeTasks = tasks.filter((t) => !t.archivedAt && !t.deletedAt && !t.parentId);
   const filtered = filterTasks(activeTasks, columns, search.field, search.value, search.dateOperator);
   const sorted = sortTasksByField(filtered, columns, sortField, sortOrder);
@@ -265,69 +277,44 @@ export default function TodoList() {
 
   const handleAdd = () => {
     if (!newTitle.trim()) return;
-    addTask({ title: newTitle, notes: newNotes, columnId: todoColId, storyPoints: newPoints, dueDate: newDue || undefined, tags: newTags });
-    setNewTitle(''); setNewNotes(''); setNewPoints(undefined); setNewDue(''); setNewTags([]);
-    setShowAddForm(false);
+    addTask({ title: newTitle, notes: newNotes, columnId: todoColId, storyPoints: newPoints, dueDate: newDue || undefined, tags: newTags, reminder: newReminder, recurrence: newRecurrence });
+    setNewTitle('');
+    setNewNotes('');
+    setNewPoints(undefined);
+    setNewDue('');
+    setNewTags([]);
+    setNewReminder(undefined);
+    setNewRecurrence(undefined);
+    setShowDetails(false);
+  };
+
+  const handleCloseInlineAdd = () => {
+    setShowInlineAdd(false);
+    setShowDetails(false);
+    setNewTitle('');
+    setNewNotes('');
+    setNewPoints(undefined);
+    setNewDue('');
+    setNewTags([]);
+    setNewReminder(undefined);
+    setNewRecurrence(undefined);
   };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-semibold">To-Do List</h2>
-        <div className="flex gap-2">
-          {doneActive.length > 0 && (
-            <button
-              onClick={() => archiveDoneTasks()}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent"
-              data-testid="archive-done-btn"
-            >
-              <Archive size={14} />
-              Archive {doneActive.length} Done
-            </button>
-          )}
+        {doneActive.length > 0 && (
           <button
-            onClick={() => setShowAddForm((v) => !v)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90"
-            data-testid="add-task-btn"
+            onClick={() => archiveDoneTasks()}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent"
+            data-testid="archive-done-btn"
           >
-            <Plus size={14} />
-            Add Task
+            <Archive size={14} />
+            Archive {doneActive.length} Done
           </button>
-        </div>
+        )}
       </div>
-
-      {showAddForm && (
-        <div className="mb-4 p-4 border border-border rounded-lg bg-card">
-          <div className="flex flex-col gap-3">
-            <input
-              className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Task title"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-              autoFocus
-              data-testid="new-task-title"
-            />
-            <textarea
-              className="px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-              placeholder="Notes (optional)"
-              rows={2}
-              value={newNotes}
-              onChange={(e) => setNewNotes(e.target.value)}
-              data-testid="new-task-description"
-            />
-            <div>
-              <label className="text-xs text-muted-foreground mb-1 block">Tags</label>
-              <TagInput tags={newTags} onChange={setNewTags} />
-            </div>
-            <TaskFields storyPoints={newPoints} dueDate={newDue} onStoryPointsChange={setNewPoints} onDueDateChange={setNewDue} />
-            <div className="flex gap-2">
-              <button onClick={handleAdd} className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90" data-testid="add-task-submit-btn">Add</button>
-              <button onClick={() => setShowAddForm(false)} className="px-4 py-1.5 text-sm border border-border rounded-md hover:bg-accent">Cancel</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="mb-3">
         <SearchBar
@@ -340,15 +327,83 @@ export default function TodoList() {
       </div>
 
       <div className="border border-border rounded-lg overflow-hidden bg-card">
-        {sorted.length === 0 ? (
+        {sorted.length === 0 && !showInlineAdd ? (
           <div className="py-12 text-center text-muted-foreground">
             <p>No tasks found.</p>
-            <p className="text-sm mt-1">Add a task above or clear the search filter.</p>
+            <p className="text-sm mt-1">Add a task below or clear the search filter.</p>
           </div>
         ) : (
           sorted.map((task) => <TaskRow key={task.id} task={task} allTasks={tasks} />)
         )}
+
+        {/* Inline add form */}
+        {showInlineAdd ? (
+          <div className="px-4 py-3 border-t border-border bg-card">
+            <input
+              autoFocus
+              className="w-full px-2 py-1.5 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Task title"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAdd();
+                if (e.key === 'Escape') handleCloseInlineAdd();
+              }}
+              data-testid="new-task-title"
+            />
+            {showDetails && (
+              <div className="mt-3 flex flex-col gap-3">
+                <textarea
+                  className="w-full px-2 py-1.5 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                  placeholder="Notes (optional)"
+                  rows={2}
+                  value={newNotes}
+                  onChange={(e) => setNewNotes(e.target.value)}
+                  data-testid="new-task-description"
+                />
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Tags</label>
+                  <TagInput tags={newTags} onChange={setNewTags} />
+                </div>
+                <TaskFields storyPoints={newPoints} dueDate={newDue} onStoryPointsChange={setNewPoints} onDueDateChange={setNewDue} />
+                <ReminderRecurrenceFields reminder={newReminder} recurrence={newRecurrence} onReminderChange={setNewReminder} onRecurrenceChange={setNewRecurrence} />
+              </div>
+            )}
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => setShowDetails((v) => !v)}
+                className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted transition-colors"
+              >
+                Details {showDetails ? '▲' : '▼'}
+              </button>
+              <div className="flex-1" />
+              <button
+                onClick={handleAdd}
+                className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90"
+                data-testid="add-task-submit-btn"
+              >
+                Add
+              </button>
+              <button
+                onClick={handleCloseInlineAdd}
+                className="px-3 py-1 text-xs border border-border rounded hover:bg-accent"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowInlineAdd(true)}
+            className="flex items-center gap-2 w-full px-4 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-accent/20 transition-colors border-t border-border/50"
+            data-testid="add-task-btn"
+          >
+            <Plus size={14} />
+            Add a task…
+          </button>
+        )}
       </div>
+
       <p className="mt-2 text-xs text-muted-foreground">
         {sorted.length} task{sorted.length !== 1 ? 's' : ''} shown
       </p>
