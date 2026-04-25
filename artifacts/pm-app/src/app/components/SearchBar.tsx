@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { SearchState, SearchField, DateOperator, SortOrder } from '../types/task';
-import { SORT_FIELD_LABELS, getSortLabel } from '../utils/sortUtils';
+import { SORT_FIELD_LABELS } from '../utils/sortUtils';
 
 interface Props {
   search: SearchState;
@@ -51,14 +51,6 @@ export function SearchBar({ search, onSearchChange, sortField, sortOrder, onSort
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [search, onSearchChange]);
-
-  function cycleSortOrder() {
-    if (sortField !== search.field) {
-      onSortChange(search.field, 'asc');
-    } else {
-      onSortChange(sortField, sortOrder === 'asc' ? 'desc' : 'asc');
-    }
-  }
 
   return (
     <div className="flex flex-wrap gap-2 items-center">
@@ -115,16 +107,25 @@ export function SearchBar({ search, onSearchChange, sortField, sortOrder, onSort
 
       {/* Sort */}
       {showSort && (
-        <button
-          onClick={cycleSortOrder}
-          className="h-9 px-3 rounded-md border border-border bg-background text-sm hover:bg-muted transition-colors flex items-center gap-1"
-          title="Toggle sort"
-        >
-          <span className="text-muted-foreground">Sort:</span>
-          <span className="font-medium">{SORT_FIELD_LABELS[sortField]}</span>
-          <span className="text-muted-foreground text-xs">{getSortLabel(sortField, sortOrder)}</span>
-          <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
-        </button>
+        <div className="flex items-center gap-1">
+          <span className="text-sm text-muted-foreground shrink-0">Sort:</span>
+          <select
+            value={sortField}
+            onChange={(e) => onSortChange(e.target.value as SearchField, sortOrder)}
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {Object.entries(SORT_FIELD_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => onSortChange(sortField, sortOrder === 'asc' ? 'desc' : 'asc')}
+            className="h-9 px-2.5 rounded-md border border-border bg-background text-sm hover:bg-muted transition-colors"
+            title={sortOrder === 'asc' ? 'Ascending — click to reverse' : 'Descending — click to reverse'}
+          >
+            {sortOrder === 'asc' ? '↑' : '↓'}
+          </button>
+        </div>
       )}
     </div>
   );

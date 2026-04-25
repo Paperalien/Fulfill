@@ -196,13 +196,6 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
 
         <div className="flex items-center gap-1 shrink-0 mt-0.5">
           <button
-            onClick={() => { setShowSubtaskInput(true); setExpanded(true); }}
-            className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity text-xs px-1.5 py-0.5 rounded border border-transparent hover:border-border"
-            title="Add subtask"
-          >
-            <Plus size={12} />
-          </button>
-          <button
             onClick={() => deleteTask(task.id)}
             aria-label="Delete task"
             className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"

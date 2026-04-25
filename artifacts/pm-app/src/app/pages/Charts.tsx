@@ -457,14 +457,6 @@ export default function Charts() {
       <h2 className="text-xl font-semibold mb-6">Charts</h2>
 
       <div className="mb-8">
-        {sectionTitle('Sprint Charts')}
-        <div className="flex flex-col gap-5">
-          <VelocityChart />
-          <BurnCharts />
-        </div>
-      </div>
-
-      <div>
         {sectionTitle('Todo Charts')}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <TasksByStatus />
@@ -472,6 +464,14 @@ export default function Charts() {
           <div className="md:col-span-2">
             <CompletionTrend />
           </div>
+        </div>
+      </div>
+
+      <div>
+        {sectionTitle('Sprint Charts')}
+        <div className="flex flex-col gap-5">
+          <VelocityChart />
+          <BurnCharts />
         </div>
       </div>
     </div>

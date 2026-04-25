@@ -12,7 +12,7 @@ import { TaskEditModal } from '../components/TaskEditModal';
 
 const DEFAULT_SEARCH: SearchState = { field: 'title', value: '', dateOperator: 'eq' };
 
-function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
+function TaskCard({ task, sprints, showPoints = true }: { task: Task; sprints: Sprint[]; showPoints?: boolean }) {
   const { updateTask, columns } = useTaskContext();
   const [showEdit, setShowEdit] = useState(false);
 
@@ -28,7 +28,7 @@ function TaskCard({ task, sprints }: { task: Task; sprints: Sprint[] }) {
           )}
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <InProgressBadge task={task} columns={columns} />
-            {task.storyPoints && (
+            {showPoints && task.storyPoints && (
               <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
                 {task.storyPoints} pts
               </span>
@@ -316,7 +316,7 @@ export default function SprintManagement() {
           {backlogTasks.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">Backlog is empty.</p>
           ) : (
-            backlogTasks.map((task) => <TaskCard key={task.id} task={task} sprints={sprints} />)
+            backlogTasks.map((task) => <TaskCard key={task.id} task={task} sprints={sprints} showPoints={false} />)
           )}
         </div>
       </div>
