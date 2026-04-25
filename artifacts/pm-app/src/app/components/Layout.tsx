@@ -35,9 +35,9 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex">
       {/* Sidebar */}
-      <aside className="w-56 shrink-0 border-r border-border bg-card flex flex-col">
+      <aside className="w-56 shrink-0 border-r border-border bg-sidebar flex flex-col">
         <div className="px-4 py-5 border-b border-border">
-          <h1 className="text-base font-bold tracking-tight text-foreground">Project Manager</h1>
+          <h1 className="text-base font-bold tracking-tight text-foreground">Fulfill</h1>
           {inProgressCount > 0 && (
             <p className="text-xs text-blue-600 mt-0.5 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
