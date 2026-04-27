@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chevron UX Options — Mockup</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+  .task-row { border-bottom: 1px solid #f3f4f6; transition: background 0.1s; }
+  .task-row:hover { background: #f9fafb; }
+  .task-row:hover .show-on-hover { opacity: 1; }
+  .show-on-hover { opacity: 0; transition: opacity 0.15s; }
+  .subtask-row { background: #fafafa; border-bottom: 1px solid #f3f4f6; }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 9999px; padding: 1px 8px; font-size: 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+  .badge-grey { background: white; color: #6b7280; border: 1px solid #d1d5db; border-radius: 9999px; padding: 1px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; }
+  .badge-subtask { background: #f3f4f6; color: #374151; border-radius: 9999px; padding: 2px 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+  .badge-subtask:hover { background: #e5e7eb; }
+  .tag { background: #f3f4f6; color: #374151; border-radius: 9999px; padding: 1px 7px; font-size: 11px; }
+  .btn-ghost { color: #9ca3af; padding: 2px 4px; border-radius: 4px; cursor: pointer; font-size: 12px; border: none; background: none; }
+  .btn-ghost:hover { color: #374151; background: #f3f4f6; }
+  .section-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #9ca3af; margin-bottom: 12px; }
+  .option-header { font-size: 15px; font-weight: 600; color: #111827; margin-bottom: 4px; }
+  .option-desc { font-size: 13px; color: #6b7280; margin-bottom: 16px; line-height: 1.5; }
+  .pulse { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .icon-btn { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; cursor: pointer; color: #9ca3af; font-size: 13px; border: none; background: none; }
+  .icon-btn:hover { background: #f3f4f6; color: #374151; }
+  .add-row { padding: 10px 16px; color: #9ca3af; font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; border-top: 1px solid #f3f4f6; }
+  .add-row:hover { background: #f9fafb; color: #374151; }
+  .annotation { font-size: 11px; color: #6b7280; font-style: italic; margin-top: 8px; }
+  .click-label { font-size: 10px; color: #3b82f6; font-weight: 500; position: absolute; margin-top: -18px; left: 0; white-space: nowrap; }
+</style>
+</head>
+<body class="bg-gray-50 p-8 min-h-screen">
+<div class="max-w-2xl mx-auto space-y-10">
+
+  <div>
+    <h1 class="text-xl font-bold text-gray-900 mb-1">Task Row — Expand/Edit UX Options</h1>
+    <p class="text-sm text-gray-500">Three approaches to fixing the ambiguous <strong>&gt;</strong> chevron. Currently: clicking the title opens edit; the chevron expands subtasks.</p>
+  </div>
+
+  <!-- CURRENT STATE -->
+  <div>
+    <div class="section-label">Current (for reference)</div>
+    <div class="card">
+      <div class="task-row flex items-start gap-2 px-4 py-3 group">
+        <button class="icon-btn mt-0.5 text-gray-300 show-on-hover" title="Expand subtasks">›</button>
+        <input type="checkbox" class="mt-1 rounded" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900 cursor-pointer" title="Click to edit">Design new onboarding flow</p>
+          <div class="flex items-center gap-2 mt-1 flex-wrap">
+            <span class="badge-blue"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 pulse inline-block"></span>In Progress · 2h</span>
+            <span class="text-xs text-gray-400">Due Apr 30</span>
+            <span class="tag">ux</span>
+          </div>
+        </div>
+        <button class="icon-btn show-on-hover" title="Delete">🗑</button>
+      </div>
+      <div class="task-row flex items-start gap-2 px-4 py-3">
+        <button class="icon-btn mt-0.5 text-gray-200" title="Expand subtasks">›</button>
+        <input type="checkbox" class="mt-1 rounded" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900 cursor-pointer" title="Click to edit">Write release notes</p>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="badge-grey"><span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>not started</span>
+          </div>
+        </div>
+      </div>
+      <p class="annotation px-4 pb-3">Problem: <strong>›</strong> looks like "open detail panel." Clicking title to edit is not obvious.</p>
+    </div>
+  </div>
+
+  <!-- OPTION A -->
+  <div>
+    <div class="section-label">Option A</div>
+    <div class="option-header">Subtask count badge replaces the chevron</div>
+    <div class="option-desc">No chevron at all. When subtasks exist, a clickable pill appears inline with the metadata. Clicking the title still opens the edit form. Clicking the pill expands subtasks.</div>
+    <div class="card">
+      <!-- Task with subtasks, expanded -->
+      <div class="task-row flex items-start gap-2 px-4 py-3">
+        <input type="checkbox" class="mt-1 rounded" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900 cursor-pointer" title="Click to edit">Design new onboarding flow</p>
+          <div class="flex items-center gap-2 mt-1 flex-wrap">
+            <span class="badge-blue"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 pulse inline-block"></span>In Progress · 2h</span>
+            <span class="text-xs text-gray-400">Due Apr 30</span>
+            <span class="tag">ux</span>
+            <button class="badge-subtask" title="Click to collapse subtasks">▾ 2 subtasks</button>
+          </div>
+        </div>
+        <button class="icon-btn show-on-hover" title="Delete">🗑</button>
+      </div>
+      <!-- Subtasks shown -->
+      <div class="subtask-row flex items-center gap-2 pl-10 pr-4 py-2">
+        <input type="checkbox" class="rounded" style="width:14px;height:14px" />
+        <p class="text-xs text-gray-600 flex-1">Write copy for step 1</p>
+      </div>
+      <div class="subtask-row flex items-center gap-2 pl-10 pr-4 py-2">
+        <input type="checkbox" class="rounded" style="width:14px;height:14px" checked />
+        <p class="text-xs text-gray-400 flex-1 line-through">Audit existing flow</p>
+      </div>
+      <!-- Task without subtasks -->
+      <div class="task-row flex items-start gap-2 px-4 py-3">
+        <input type="checkbox" class="mt-1 rounded" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900 cursor-pointer" title="Click to edit">Write release notes</p>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="badge-grey"><span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>not started</span>
+          </div>
+        </div>
+      </div>
+      <div class="add-row">+ Add a task…</div>
+    </div>
+    <p class="annotation">Tradeoff: subtask count is less immediately visible than a chevron. Works best when tasks rarely have subtasks.</p>
+  </div>
+
+  <!-- OPTION B -->
+  <div>
+    <div class="section-label">Option B</div>
+    <div class="option-header">Pencil icon on hover; chevron stays for subtasks only</div>
+    <div class="option-desc">The title becomes non-clickable. A <strong>✎ Edit</strong> pencil icon appears on row hover (next to trash). The chevron is renamed from › to ▾ to signal "expand below." Both actions are now explicit and separated.</div>
+    <div class="card">
+      <div class="task-row flex items-start gap-2 px-4 py-3 group">
+        <button class="icon-btn mt-0.5 text-gray-400" title="Expand subtasks (2)">▾</button>
+        <input type="checkbox" class="mt-1 rounded" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900">Design new onboarding flow</p>
+          <div class="flex items-center gap-2 mt-1 flex-wrap">
+            <span class="badge-blue"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 pulse inline-block"></span>In Progress · 2h</span>
+            <span class="text-xs text-gray-400">Due Apr 30</span>
+            <span class="tag">ux</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 mt-0.5">
+          <button class="icon-btn show-on-hover text-gray-400 hover:text-blue-600" title="Edit task" style="font-size:14px">✎</button>
+          <button class="icon-btn show-on-hover" title="Delete">🗑</button>
+        </div>
+      </div>
+      <div class="task-row flex items-start gap-2 px-4 py-3 group">
+        <button class="icon-btn mt-0.5 text-gray-200">▾</button>
+        <input type="checkbox" class="mt-1 rounded" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900">Write release notes</p>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="badge-grey"><span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>not started</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 mt-0.5">
+          <button class="icon-btn show-on-hover text-gray-400 hover:text-blue-600" title="Edit task" style="font-size:14px">✎</button>
+          <button class="icon-btn show-on-hover" title="Delete">🗑</button>
+        </div>
+      </div>
+      <div class="add-row">+ Add a task…</div>
+    </div>
+    <p class="annotation">Tradeoff: edit is now two clicks on mobile (tap row to reveal hover state, then tap pencil). Best for desktop-primary use.</p>
+  </div>
+
+  <!-- OPTION C -->
+  <div>
+    <div class="section-label">Option C</div>
+    <div class="option-header">Chevron opens the edit form; separate subtask affordance</div>
+    <div class="option-desc">The <strong>›</strong> arrow now opens the inline edit form, matching user expectation. Subtasks are accessed via a small "N subtasks" count link below the title. No collapse — subtasks are always shown when the link has been tapped.</div>
+    <div class="card">
+      <div class="task-row flex items-start gap-2 px-4 py-3 group">
+        <button class="icon-btn mt-0.5 text-gray-400" title="Edit task details" style="font-size:15px">›</button>
+        <input type="checkbox" class="mt-1 rounded" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900">Design new onboarding flow</p>
+          <div class="flex items-center gap-2 mt-1 flex-wrap">
+            <span class="badge-blue"><span class="w-1.5 h-1.5 rounded-full bg-blue-500 pulse inline-block"></span>In Progress · 2h</span>
+            <span class="text-xs text-gray-400">Due Apr 30</span>
+            <span class="tag">ux</span>
+          </div>
+          <button class="text-xs text-blue-500 mt-1 hover:underline block" title="Show subtasks">▾ 2 subtasks</button>
+        </div>
+        <button class="icon-btn show-on-hover" title="Delete">🗑</button>
+      </div>
+      <!-- Task with subtasks expanded -->
+      <div class="subtask-row flex items-center gap-2 pl-10 pr-4 py-2">
+        <input type="checkbox" class="rounded" style="width:14px;height:14px" />
+        <p class="text-xs text-gray-600 flex-1">Write copy for step 1</p>
+      </div>
+      <div class="task-row flex items-start gap-2 px-4 py-3 group">
+        <button class="icon-btn mt-0.5 text-gray-400" title="Edit task details" style="font-size:15px">›</button>
+        <input type="checkbox" class="mt-1 rounded" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-gray-900">Write release notes</p>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="badge-grey"><span class="w-1.5 h-1.5 rounded-full bg-gray-300 inline-block"></span>not started</span>
+          </div>
+        </div>
+        <button class="icon-btn show-on-hover" title="Delete">🗑</button>
+      </div>
+      <div class="add-row">+ Add a task…</div>
+    </div>
+    <p class="annotation">Tradeoff: the › now means something different from every other › in the app (Kanban column names, etc). Could cause new confusion.</p>
+  </div>
+
+  <p class="text-xs text-gray-400 pb-8">Hover over rows to see hover states. Status pills (not started / in progress) are always visible and clickable in all options.</p>
+</div>
+</body>
+</html>

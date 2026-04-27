@@ -454,7 +454,7 @@ function CompletionTrend() {
 export default function Charts() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h2 className="text-xl font-semibold mb-6">Charts</h2>
+      <h2 className="text-lg font-semibold mb-6">Charts</h2>
 
       <div className="mb-8">
         {sectionTitle('Todo Charts')}

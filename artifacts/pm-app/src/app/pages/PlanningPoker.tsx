@@ -23,7 +23,7 @@ export default function PlanningPoker() {
     <div className="p-6 max-w-2xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Vote size={24} className="text-primary" />
-        <h2 className="text-xl font-semibold">Planning Poker</h2>
+        <h2 className="text-lg font-semibold">Planning Poker</h2>
       </div>
 
       <div className="mb-6">

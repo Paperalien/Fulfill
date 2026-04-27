@@ -11,15 +11,19 @@ interface Props {
 export function InProgressBadge({ task, columns, className = '', onClick }: Props) {
   const sem = getSemanticStatus(task, columns);
 
+  const handleClick = onClick
+    ? (e: React.MouseEvent) => { e.stopPropagation(); onClick(); }
+    : undefined;
+
   if (onClick && sem === 'not-started') {
     return (
       <button
-        onClick={onClick}
-        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground opacity-0 group-hover:opacity-60 hover:!opacity-100 hover:bg-muted transition-all"
+        onClick={handleClick}
+        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-muted-foreground border border-border/60 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 transition-colors"
         title="Mark in progress"
       >
         <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-        start
+        not started
       </button>
     );
   }
@@ -40,7 +44,7 @@ export function InProgressBadge({ task, columns, className = '', onClick }: Prop
   if (onClick) {
     return (
       <button
-        onClick={onClick}
+        onClick={handleClick}
         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 transition-colors ${className}`}
         title={task.inProgressAt ? `In progress since ${new Date(task.inProgressAt).toLocaleString()} · click to revert` : 'Click to revert'}
       >

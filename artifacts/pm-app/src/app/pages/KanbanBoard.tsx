@@ -287,7 +287,7 @@ export default function KanbanBoard() {
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Kanban Board</h2>
+        <h2 className="text-lg font-semibold">Kanban Board</h2>
         <div className="flex gap-2">
           <button
             onClick={() => setShowColumnManager(true)}

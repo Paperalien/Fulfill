@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Archive, ChevronRight, ChevronDown, Bell, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Archive, Bell, RefreshCw } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, SearchState, SortOrder, SearchField } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
@@ -21,7 +21,7 @@ function SubtaskRow({ task }: { task: Task }) {
   const isTaskDone = doneCols.has(task.columnId);
 
   return (
-    <div className="flex items-center gap-2 pl-8 pr-4 py-2 border-b border-border/50 bg-muted/20 hover:bg-accent/10 transition-colors group">
+    <div className="flex items-center gap-2 py-1.5 group">
       <input
         type="checkbox"
         checked={isTaskDone}
@@ -31,11 +31,10 @@ function SubtaskRow({ task }: { task: Task }) {
       <p className={`text-sm flex-1 ${isTaskDone ? 'line-through text-muted-foreground' : ''}`}>
         {task.title}
       </p>
-      <InProgressBadge task={task} columns={columns} />
       {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
       <button
         onClick={() => deleteTask(task.id)}
-        aria-label="Delete subtask"
+        aria-label="Delete step"
         className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
       >
         <Trash2 size={12} />
@@ -47,8 +46,6 @@ function SubtaskRow({ task }: { task: Task }) {
 function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
   const { updateTask, deleteTask, addTask, columns, doneColumnIds } = useTaskContext();
   const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [showSubtaskInput, setShowSubtaskInput] = useState(false);
   const [subtaskTitle, setSubtaskTitle] = useState('');
 
   const [title, setTitle] = useState(task.title);
@@ -96,25 +93,27 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
       tags: [],
     });
     setSubtaskTitle('');
-    setShowSubtaskInput(false);
-    setExpanded(true);
+  };
+
+  const handleOpen = () => {
+    setTitle(task.title);
+    setNotes(task.notes);
+    setStoryPoints(task.storyPoints);
+    setDueDate(task.dueDate ?? '');
+    setTags(task.tags ?? []);
+    setReminder(task.reminder);
+    setRecurrence(task.recurrence);
+    setEditing(true);
   };
 
   return (
     <>
+      {/* Compact row */}
       <div
         id={`task-${task.id}`}
         className="flex items-start gap-3 px-4 py-3 border-b border-border hover:bg-accent/20 transition-colors group"
         data-testid={`task-row-${task.id}`}
       >
-        {/* Expand toggle */}
-        <button
-          onClick={() => setExpanded((v) => !v)}
-          className={`mt-1 shrink-0 text-muted-foreground transition-colors ${subtasksTotal > 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-50'}`}
-        >
-          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </button>
-
         <input
           type="checkbox"
           checked={isTaskDone}
@@ -123,85 +122,45 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
           data-testid={`checkbox-${task.id}`}
         />
 
-        <div className="flex-1 min-w-0">
-          {editing ? (
-            <div className="flex flex-col gap-2">
-              <input
-                className="w-full px-2 py-1 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                data-testid="edit-title-input"
-              />
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Notes</label>
-                <textarea
-                  className="w-full px-2 py-1 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-                  rows={3}
-                  placeholder="Notes, context, details…"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  data-testid="edit-description-input"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground mb-1 block">Tags</label>
-                <TagInput tags={tags} onChange={setTags} />
-              </div>
-              <TaskFields
-                storyPoints={storyPoints}
-                dueDate={dueDate}
-                onStoryPointsChange={setStoryPoints}
-                onDueDateChange={setDueDate}
-              />
-              <ReminderRecurrenceFields
-                reminder={reminder}
-                recurrence={recurrence}
-                onReminderChange={setReminder}
-                onRecurrenceChange={setRecurrence}
-              />
-              <div className="flex gap-2">
-                <button onClick={handleSave} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90" data-testid="edit-save-btn">Save</button>
-                <button onClick={() => setEditing(false)} className="px-3 py-1 text-xs border border-border rounded hover:bg-accent" data-testid="edit-cancel-btn">Cancel</button>
-              </div>
-            </div>
-          ) : (
-            <div className="cursor-pointer" onClick={() => setEditing(true)} data-testid={`task-title-${task.id}`}>
-              <p className={`text-sm font-medium ${isTaskDone ? 'line-through text-muted-foreground' : ''}`}>
-                {task.title}
-              </p>
-              {task.notes && (
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.notes}</p>
-              )}
-              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                <InProgressBadge task={task} columns={columns} onClick={handleToggleInProgress} />
-                {task.storyPoints && (
-                  <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
-                    {task.storyPoints} pts
-                  </span>
-                )}
-                {task.dueDate && (
-                  <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>
-                )}
-                {task.recurrence && (
-                  <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-                    <RefreshCw size={10} /> {task.recurrence}
-                  </span>
-                )}
-                {task.reminder && (
-                  <span className={`text-xs flex items-center gap-0.5 ${isReminderActive(task) ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}>
-                    <Bell size={10} />
-                    {isReminderActive(task) ? 'reminder due' : task.reminder === 'day-before' ? 'day before' : task.reminder === 'on-due-date' ? 'on due date' : task.reminder}
-                  </span>
-                )}
-                {subtasksTotal > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {subtasksDone}/{subtasksTotal} subtasks
-                  </span>
-                )}
-                {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
-              </div>
-            </div>
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={handleOpen}
+          data-testid={`task-title-${task.id}`}
+        >
+          <p className={`text-sm font-medium ${isTaskDone ? 'line-through text-muted-foreground' : ''}`}>
+            {task.title}
+          </p>
+          {task.notes && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.notes}</p>
           )}
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <InProgressBadge task={task} columns={columns} onClick={handleToggleInProgress} />
+            {task.storyPoints && (
+              <span className="text-xs bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
+                {task.storyPoints} pts
+              </span>
+            )}
+            {task.dueDate && (
+              <span className="text-xs text-muted-foreground">Due {task.dueDate}</span>
+            )}
+            {task.recurrence && (
+              <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                <RefreshCw size={10} /> {task.recurrence}
+              </span>
+            )}
+            {task.reminder && (
+              <span className={`text-xs flex items-center gap-0.5 ${isReminderActive(task) ? 'text-amber-600 font-medium' : 'text-muted-foreground'}`}>
+                <Bell size={10} />
+                {isReminderActive(task) ? 'reminder due' : task.reminder === 'day-before' ? 'day before' : task.reminder === 'on-due-date' ? 'on due date' : task.reminder}
+              </span>
+            )}
+            {subtasksTotal > 0 && (
+              <span className="text-xs text-muted-foreground">
+                {subtasksDone}/{subtasksTotal} steps
+              </span>
+            )}
+            {(task.tags ?? []).map((tag) => <TagBadge key={tag} tag={tag} />)}
+          </div>
         </div>
 
         <div className="flex items-center gap-1 shrink-0 mt-0.5">
@@ -216,35 +175,72 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
         </div>
       </div>
 
-      {/* Subtasks */}
-      {expanded && (
-        <>
-          {subtasks.map((sub) => <SubtaskRow key={sub.id} task={sub} />)}
-          {showSubtaskInput ? (
-            <div className="flex items-center gap-2 pl-8 pr-4 py-2 border-b border-border/50 bg-muted/20">
+      {/* Accordion — edit fields + steps */}
+      {editing && (
+        <div className="border-b border-border bg-muted/20 px-4 py-4 flex flex-col gap-3">
+          <input
+            autoFocus
+            className="w-full px-2 py-1 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            data-testid="edit-title-input"
+          />
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Notes</label>
+            <textarea
+              className="w-full px-2 py-1 text-sm border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
+              rows={2}
+              placeholder="Notes, context, details…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              data-testid="edit-description-input"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground mb-1 block">Tags</label>
+            <TagInput tags={tags} onChange={setTags} />
+          </div>
+          <TaskFields
+            storyPoints={storyPoints}
+            dueDate={dueDate}
+            onStoryPointsChange={setStoryPoints}
+            onDueDateChange={setDueDate}
+          />
+          <ReminderRecurrenceFields
+            reminder={reminder}
+            recurrence={recurrence}
+            onReminderChange={setReminder}
+            onRecurrenceChange={setRecurrence}
+          />
+
+          {/* Steps section */}
+          <div className="border-t border-border/40 pt-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Steps</p>
+            {subtasks.length > 0 && (
+              <div className="mb-2 flex flex-col gap-0.5">
+                {subtasks.map((sub) => <SubtaskRow key={sub.id} task={sub} />)}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Plus size={13} className="text-muted-foreground shrink-0" />
               <input
-                autoFocus
                 value={subtaskTitle}
                 onChange={(e) => setSubtaskTitle(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleAddSubtask();
-                  if (e.key === 'Escape') setShowSubtaskInput(false);
                 }}
-                placeholder="Subtask title… (Enter to add)"
-                className="flex-1 text-sm px-2 py-1 border border-border rounded bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Add a step…"
+                className="flex-1 text-sm py-1 bg-transparent border-b border-border/60 focus:border-primary focus:outline-none placeholder:text-muted-foreground/60"
               />
-              <button onClick={handleAddSubtask} className="text-xs px-2 py-1 bg-primary text-primary-foreground rounded hover:opacity-90">Add</button>
-              <button onClick={() => setShowSubtaskInput(false)} className="text-xs px-2 py-1 border border-border rounded hover:bg-accent">×</button>
             </div>
-          ) : (
-            <button
-              onClick={() => setShowSubtaskInput(true)}
-              className="flex items-center gap-1 pl-8 pr-4 py-1.5 w-full border-b border-border/50 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors"
-            >
-              <Plus size={11} /> Add subtask
-            </button>
-          )}
-        </>
+          </div>
+
+          <div className="flex gap-2 pt-1">
+            <button onClick={handleSave} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90" data-testid="edit-save-btn">Save</button>
+            <button onClick={() => setEditing(false)} className="px-3 py-1 text-xs border border-border rounded hover:bg-accent" data-testid="edit-cancel-btn">Cancel</button>
+          </div>
+        </div>
       )}
     </>
   );
@@ -303,7 +299,7 @@ export default function TodoList() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">To-Do List</h2>
+        <h2 className="text-lg font-semibold">To-Do List</h2>
         {doneActive.length > 0 && (
           <button
             onClick={() => archiveDoneTasks()}

@@ -40,7 +40,7 @@ export default function TrashBin() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Trash Bin</h2>
+        <h2 className="text-lg font-semibold">Trash Bin</h2>
         <span className="text-sm text-muted-foreground">{trashedTasks.length} deleted task{trashedTasks.length !== 1 ? 's' : ''}</span>
       </div>
 

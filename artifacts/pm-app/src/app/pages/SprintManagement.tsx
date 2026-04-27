@@ -148,7 +148,7 @@ export default function SprintManagement() {
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold">Sprint Management</h2>
+        <h2 className="text-lg font-semibold">Sprint Management</h2>
         <button
           onClick={() => setShowSprintForm((v) => !v)}
           className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90"

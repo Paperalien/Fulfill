@@ -30,19 +30,22 @@ The app is a React 19 SPA (Vite) backed by an Express 5 REST API. All routes are
 
 ### Navigation (Sidebar)
 
-Seven top-level destinations. The sidebar is always visible; no nested navigation.
+Six top-level destinations. The sidebar is always visible on desktop; on mobile it slides in from the left via a hamburger button in the top bar.
 
 | Route | Feature | Badge |
 |---|---|---|
 | `/` | To-Do List | — |
 | `/kanban` | Kanban Board | — |
 | `/sprints` | Sprint Management | — |
-| `/planning-poker` | Planning Poker | — |
 | `/charts` | Sprint Charts | — |
 | `/done` | Done Folder | Archived task count |
 | `/trash` | Trash Bin | Deleted task count |
 
-When the user is **not signed in**, a **Save your data** (envelope) icon is pinned to the top of the sidebar. This is the sole entry point for account creation and sign-in.
+Note: Planning Poker is hidden from the nav and router for this release.
+
+**Responsive behaviour:** On desktop (≥768px) the sidebar is a fixed left rail (224px). On mobile the sidebar is hidden; a `[≡] [Page name]` top bar is shown instead. Tapping `≡` opens the sidebar as a slide-over Sheet. The brand header ("Fulfill · beta") appears inside the sidebar only — it is not repeated in the mobile top bar.
+
+When the user is **not signed in**, a **Save your data** (envelope) icon appears in the sidebar header. This is the sole entry point for account creation and sign-in.
 
 ---
 
@@ -50,19 +53,37 @@ When the user is **not signed in**, a **Save your data** (envelope) icon is pinn
 
 ### 3.1 To-Do List (`/`)
 
-**What it is:** A flat, unfiltered list of all active tasks (not archived, not deleted). The simplest possible view — no columns, no sprint grouping.
+**What it is:** A flat list of all active root tasks (not archived, not deleted, no parent). The simplest possible view — no columns, no sprint grouping.
 
 **Intended UX:**
-- Immediate task entry via a single text input at the top. Press Enter to create.
-- Inline editing: clicking any field on a task row edits it in place (title, notes, story points, due date, tags, reminder, recurrence).
-- Checkbox marks a task done — this moves the task to the column with `semanticStatus: 'done'` (first such column by order). The task then disappears from the list and becomes eligible for archiving.
-- Subtask expansion: a chevron reveals child tasks. Each subtask has its own checkbox. Progress shown as `n/total` on the parent.
-- The list is not paginated. All tasks load at once.
+
+*Search and sort (always visible at top):*
+- A search bar is always visible above the task list. Users can filter by title, notes, status, tags, story points, due date, in-progress date, or created date.
+- A sort control (field selector + ↑/↓ direction toggle) sits beside the search bar.
+
+*Task rows (compact):*
+- Each row shows: checkbox · title · status pill · metadata badges (story points, due date, recurrence, reminder, step count, tags) · delete icon (on hover).
+- Checkbox marks a task done — moves it to the `semanticStatus: 'done'` column; task disappears from the list and becomes eligible for archiving.
+- The **status pill** is always visible and clickable. For `not-started` tasks it shows "not started" in a subtle grey pill; for `in-progress` tasks it shows the pulsing blue "In Progress · Xh ago" badge. Clicking toggles between `not-started` and `in-progress` without opening the edit form.
+
+*Task detail accordion (MS To-Do flow):*
+- Clicking the task title expands an inline accordion below the row. There is no chevron — this is the only expand interaction.
+- The accordion contains all editable fields (title, notes, tags, story points, due date, reminder, recurrence) **and** the Steps (subtasks) section in one unified panel.
+- Steps section: existing steps listed with checkboxes (done = strikethrough); "Add a step…" underline input at the bottom — Enter adds, input stays focused for rapid sequential entry.
+- Save / Cancel buttons close the accordion. Clicking away does not auto-save.
+
+*Adding new tasks:*
+- An "+ Add a task…" row is pinned to the bottom of the task list card.
+- Clicking it expands an inline form showing just the title input (autofocused). A "Details ▼" toggle reveals notes, tags, story points, due date, reminder, and recurrence fields.
+- Enter submits with only the title; form stays open for rapid sequential entry. Escape cancels.
+
+*Archiving:*
+- An "Archive N Done" button appears in the page header when done tasks exist. It bulk-archives all done tasks.
 
 **Design intent reviewers should evaluate:**
 - Should feel like a notes app, not a project tracker. Low friction is the goal.
-- Inline editing should not require a separate modal. Any field should be editable without navigating away.
-- There is no "sort" or "filter" control on this page by design — it's a raw dump of active tasks. Reviewers should flag if the UX makes the list feel unmanageable at scale.
+- The status pill must be clearly interactive without being distracting when tasks are not-started.
+- The accordion must feel snappy — no layout shift on the surrounding rows when it opens.
 
 ---
 

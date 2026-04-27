@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Outlet, NavLink } from 'react-router';
+import { Outlet, NavLink, useLocation } from 'react-router';
 import {
   ListTodo,
   LayoutGrid,
@@ -18,6 +18,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+
+function Brand() {
+  return (
+    <span className="flex items-baseline gap-1.5">
+      <span className="text-base font-bold tracking-tight text-foreground">Fulfill</span>
+      <span className="text-[9px] font-medium tracking-wide uppercase text-muted-foreground/70 leading-none">beta</span>
+    </span>
+  );
+}
 
 const NAV_ITEMS = [
   { to: '/', label: 'To-Do', icon: ListTodo, end: true },
@@ -72,6 +81,10 @@ function SidebarNav({ archivedCount, trashCount, onNavigate }: NavProps) {
 export default function Layout() {
   const { tasks, columns, doneColumnIds } = useTaskContext();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { pathname } = useLocation();
+  const pageLabel = NAV_ITEMS.find(({ to, end }) =>
+    end ? pathname === to : pathname.startsWith(to)
+  )?.label ?? 'Fulfill';
 
   const active = tasks.filter((t) => !t.archivedAt && !t.deletedAt);
   const inProgressCount = active.filter((t) => {
@@ -88,7 +101,7 @@ export default function Layout() {
       {/* Desktop sidebar — hidden below md breakpoint */}
       <aside className="hidden md:flex w-56 shrink-0 border-r border-border bg-sidebar flex-col">
         <div className="px-4 py-5 border-b border-border">
-          <h1 className="text-base font-bold tracking-tight text-foreground">Fulfill</h1>
+          <Brand />
           {inProgressCount > 0 && (
             <p className="text-xs text-blue-600 mt-0.5 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
@@ -112,7 +125,7 @@ export default function Layout() {
             <SheetTitle>Navigation</SheetTitle>
           </SheetHeader>
           <div className="px-4 py-5 border-b border-border">
-            <h1 className="text-base font-bold tracking-tight text-foreground">Fulfill</h1>
+            <Brand />
             {inProgressCount > 0 && (
               <p className="text-xs text-blue-600 mt-0.5 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse inline-block" />
@@ -141,7 +154,7 @@ export default function Layout() {
           >
             <Menu size={20} />
           </button>
-          <span className="text-sm font-semibold">Fulfill</span>
+          <span className="text-sm font-semibold">{pageLabel}</span>
         </div>
         <ReminderBanner />
         <div className="flex-1 overflow-auto">

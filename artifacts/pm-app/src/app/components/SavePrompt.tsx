@@ -91,10 +91,11 @@ export function SavePrompt({ open, onOpenChange }: Props) {
       </PopoverTrigger>
 
       <PopoverContent
-        side="right"
+        side="bottom"
         align="start"
-        sideOffset={12}
-        className="w-80"
+        sideOffset={8}
+        collisionPadding={12}
+        className="w-80 max-w-[calc(100vw-1.5rem)]"
       >
         {panel === 'choice' && (
           <div className="space-y-3">
