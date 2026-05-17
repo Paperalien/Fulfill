@@ -36,6 +36,93 @@ export const EnsurePersonalWorkspaceResponse = zod.object({
 });
 
 /**
+ * Returns all workspaces the authenticated user is a member of. Personal workspace is always first.
+ * @summary List workspaces
+ */
+export const ListWorkspacesResponseItem = zod.object({
+  id: zod.string(),
+  name: zod.string(),
+  isPersonal: zod.boolean(),
+  memberCount: zod.number(),
+});
+export const ListWorkspacesResponse = zod.array(ListWorkspacesResponseItem);
+
+/**
+ * Creates a new shared workspace. Seeds 4 default columns.
+ * @summary Create a shared workspace
+ */
+export const createWorkspaceBodyNameMax = 20;
+
+export const CreateWorkspaceBody = zod.object({
+  name: zod.string().min(1).max(createWorkspaceBodyNameMax),
+});
+
+/**
+ * Returns whether the given name is available for a new shared workspace.
+ * @summary Check workspace name availability
+ */
+export const CheckWorkspaceNameQueryParams = zod.object({
+  name: zod.coerce
+    .string()
+    .describe("The workspace name to check (max 20 characters)."),
+});
+
+export const CheckWorkspaceNameResponse = zod.object({
+  available: zod.boolean(),
+});
+
+/**
+ * Renames a shared workspace. Personal workspaces cannot be renamed.
+ * @summary Rename a workspace
+ */
+export const RenameWorkspaceParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const renameWorkspaceBodyNameMax = 20;
+
+export const RenameWorkspaceBody = zod.object({
+  name: zod.string().min(1).max(renameWorkspaceBodyNameMax),
+});
+
+export const RenameWorkspaceResponse = zod.object({
+  workspaceId: zod.string(),
+  name: zod.string(),
+});
+
+/**
+ * Removes the authenticated user from the workspace. Personal workspaces cannot be left.
+ * @summary Leave a workspace
+ */
+export const LeaveWorkspaceParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+/**
+ * Creates an invitation record and sends an email to the invitee. Personal workspaces cannot be invited to.
+ * @summary Invite a user to a workspace
+ */
+export const CreateInvitationParams = zod.object({
+  workspaceId: zod.coerce.string().describe("The workspace ID."),
+});
+
+export const CreateInvitationBody = zod.object({
+  email: zod.string().email(),
+});
+
+/**
+ * Adds the authenticated user to the workspace identified by the invitation token. Returns 410 if the invitation is expired or already used.
+ * @summary Accept a workspace invitation
+ */
+export const AcceptInvitationParams = zod.object({
+  token: zod.coerce.string().describe("The invitation token."),
+});
+
+export const AcceptInvitationResponse = zod.object({
+  workspaceId: zod.string(),
+});
+
+/**
  * Atomically uploads all local (localStorage) data to the authenticated workspace in a single DB transaction. Deduplicates columns by name+semanticStatus. Remaps local IDs to server-assigned IDs for columns, sprints, and task self-references.
  * @summary Migrate local data to server
  */

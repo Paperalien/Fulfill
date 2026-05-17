@@ -9,6 +9,58 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  isPersonal: boolean;
+  memberCount: number;
+}
+
+export interface CreateWorkspaceRequest {
+  /**
+   * @minLength 1
+   * @maxLength 20
+   */
+  name: string;
+}
+
+export interface WorkspaceCreated {
+  workspaceId: string;
+  name: string;
+}
+
+export interface WorkspaceNameAvailability {
+  available: boolean;
+}
+
+export interface RenameWorkspaceRequest {
+  /**
+   * @minLength 1
+   * @maxLength 20
+   */
+  name: string;
+}
+
+export interface WorkspaceRenamed {
+  workspaceId: string;
+  name: string;
+}
+
+export interface CreateInvitationRequest {
+  email: string;
+}
+
+export interface InvitationCreated {
+  id: string;
+  inviteeEmail: string;
+  /** ISO datetime */
+  expiresAt: string;
+}
+
+export interface InvitationAccepted {
+  workspaceId: string;
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -317,6 +369,13 @@ export interface CreateSprintSnapshotRequest {
 
 export type EnsurePersonalWorkspace200 = {
   workspaceId: string;
+};
+
+export type CheckWorkspaceNameParams = {
+  /**
+   * The workspace name to check (max 20 characters).
+   */
+  name: string;
 };
 
 export type DeleteColumnParams = {
