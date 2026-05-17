@@ -1,13 +1,24 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { setAuthTokenGetter } from '@workspace/api-client-react';
+import {
+  setAuthTokenGetter,
+  ensurePersonalWorkspace as ensurePersonalWorkspaceApi,
+  listWorkspaces as fetchWorkspaces,
+  createWorkspace as createWorkspaceApi,
+} from '@workspace/api-client-react';
+import type { WorkspaceSummary } from '@workspace/api-client-react';
+
+const SESSION_KEY = 'fulfill:activeWorkspaceId';
 
 interface AuthContextValue {
   session: Session | null;
-  workspaceId: string | null;
+  workspaces: WorkspaceSummary[];
+  activeWorkspaceId: string | null;
   loading: boolean;
   isAuthenticated: boolean;
+  switchWorkspace: (id: string) => void;
+  createWorkspace: (name: string) => Promise<WorkspaceSummary>;
   signOut: () => Promise<void>;
   signInWithEmail: (email: string) => Promise<void>;
 }
@@ -16,7 +27,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<WorkspaceSummary[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthTokenGetter(
           () => supabase.auth.getSession().then(({ data }) => data.session?.access_token ?? null)
         );
-        ensurePersonalWorkspace(initialSession.access_token);
+        initWorkspaces();
       }
     });
 
@@ -41,9 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthTokenGetter(
           () => supabase.auth.getSession().then(({ data }) => data.session?.access_token ?? null)
         );
-        ensurePersonalWorkspace(newSession.access_token);
+        initWorkspaces();
       } else {
-        setWorkspaceId(null);
+        setWorkspaces([]);
+        setActiveWorkspaceId(null);
         setAuthTokenGetter(() => Promise.resolve(null));
       }
     });
@@ -53,24 +66,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function ensurePersonalWorkspace(accessToken: string) {
+  async function initWorkspaces() {
     try {
-      const baseUrl = (import.meta.env.VITE_API_BASE_URL as string).replace(/\/+$/, '');
-      const response = await fetch(`${baseUrl}/api/workspaces/ensure-personal`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const { workspaceId: personalId } = await ensurePersonalWorkspaceApi();
+      const wsList = await fetchWorkspaces();
+      setWorkspaces(wsList);
 
-      if (response.ok) {
-        const data = await response.json();
-        setWorkspaceId(data.workspaceId ?? null);
-      }
+      const stored = sessionStorage.getItem(SESSION_KEY);
+      const validStored = stored ? wsList.some((w) => w.id === stored) : false;
+      setActiveWorkspaceId(validStored ? stored : personalId);
     } catch (err) {
-      console.error('Failed to ensure personal workspace:', err);
+      console.error('Failed to initialize workspaces:', err);
     }
+  }
+
+  function switchWorkspace(id: string) {
+    sessionStorage.setItem(SESSION_KEY, id);
+    setActiveWorkspaceId(id);
+  }
+
+  async function createWorkspace(name: string): Promise<WorkspaceSummary> {
+    const result = await createWorkspaceApi({ name });
+    const newWs: WorkspaceSummary = {
+      id: result.workspaceId,
+      name: result.name,
+      isPersonal: false,
+      memberCount: 1,
+    };
+    setWorkspaces((prev) => [...prev, newWs]);
+    return newWs;
   }
 
   async function signOut() {
@@ -84,10 +108,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  const isAuthenticated = !!session && !!workspaceId;
+  const isAuthenticated = !!session && !!activeWorkspaceId;
 
   return (
-    <AuthContext.Provider value={{ session, workspaceId, loading, isAuthenticated, signOut, signInWithEmail }}>
+    <AuthContext.Provider
+      value={{
+        session,
+        workspaces,
+        activeWorkspaceId,
+        loading,
+        isAuthenticated,
+        switchWorkspace,
+        createWorkspace,
+        signOut,
+        signInWithEmail,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

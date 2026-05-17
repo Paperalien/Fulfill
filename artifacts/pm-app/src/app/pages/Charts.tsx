@@ -214,13 +214,13 @@ function BurnupChart({ sprintId, sprint, snapshots }: { sprintId: string; sprint
 
 function BurnCharts() {
   const { sprints } = useTaskContext();
-  const { workspaceId } = useAuth();
+  const { activeWorkspaceId } = useAuth();
 
-  const wid = workspaceId ?? '';
+  const wid = activeWorkspaceId ?? '';
   const { data: snapshotData } = useGetSprintSnapshots(
     wid,
     {},
-    { query: { enabled: !!workspaceId, queryKey: getGetSprintSnapshotsQueryKey(wid) } }
+    { query: { enabled: !!activeWorkspaceId, queryKey: getGetSprintSnapshotsQueryKey(wid) } }
   );
   const allSnapshots: SnapshotRow[] = (snapshotData ?? []).map((s: { date: string; total: number; done: number }) => ({
     date: s.date,

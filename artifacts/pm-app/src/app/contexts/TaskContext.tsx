@@ -587,12 +587,12 @@ function useApiTaskStore(workspaceId: string | null): TaskContextValue {
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export function TaskProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, workspaceId } = useAuth();
+  const { isAuthenticated, activeWorkspaceId } = useAuth();
 
   // Both hooks are always called (React rules of hooks).
-  // API hooks are no-ops when workspaceId is null (enabled: false).
+  // API hooks are no-ops when activeWorkspaceId is null (enabled: false).
   const localStore = useLocalTaskStore();
-  const apiStore = useApiTaskStore(workspaceId);
+  const apiStore = useApiTaskStore(activeWorkspaceId);
 
   const store = isAuthenticated ? apiStore : localStore;
 
