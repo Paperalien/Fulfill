@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   Calendar,
   BarChart2,
+  Vote,
   Archive,
   Trash2,
   Menu,
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { to: '/kanban', label: 'Kanban', icon: LayoutGrid },
   { to: '/sprints', label: 'Sprint', icon: Calendar },
   { to: '/charts', label: 'Charts', icon: BarChart2 },
+  { to: '/planning-poker', label: 'Planning Poker', icon: Vote },
   { to: '/done', label: 'Done', icon: Archive },
   { to: '/trash', label: 'Trash', icon: Trash2 },
 ];
