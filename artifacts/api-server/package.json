@@ -23,6 +23,7 @@
     "nanoid": "^5.1.7",
     "pino": "^9",
     "pino-http": "^10",
+    "resend": "^6.12.3",
     "zod": "catalog:"
   },
   "devDependencies": {

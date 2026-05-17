@@ -4,6 +4,7 @@ import usersRouter from "./users";
 import { requireAuth } from "../middlewares/auth";
 import { requireWorkspaceAccess } from "../middlewares/requireWorkspaceAccess";
 import workspacesRouter from "./workspaces";
+import { workspaceInvitationsRouter, invitationsRouter } from "./invitations";
 import migrateRouter from "./migrate";
 import tasksRouter from "./tasks";
 import sprintsRouter from "./sprints";
@@ -23,6 +24,8 @@ router.use(requireAuth);
 router.use("/workspaces/:workspaceId", requireWorkspaceAccess);
 
 router.use("/workspaces", workspacesRouter);
+router.use("/workspaces/:workspaceId/invitations", workspaceInvitationsRouter);
+router.use("/invitations", invitationsRouter);
 router.use("/workspaces/:workspaceId/migrate", migrateRouter);
 router.use("/workspaces/:workspaceId/tasks", tasksRouter);
 router.use("/workspaces/:workspaceId/sprints", sprintsRouter);
