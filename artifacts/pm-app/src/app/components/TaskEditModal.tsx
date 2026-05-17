@@ -5,6 +5,7 @@ import { useTaskContext } from '../contexts/TaskContext';
 import { TagInput } from './TagInput';
 import TaskFields from './TaskFields';
 import ReminderRecurrenceFields from './ReminderRecurrenceFields';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   task: Task;
@@ -137,12 +138,8 @@ export function TaskEditModal({ task, onClose }: Props) {
         <div className="flex items-center justify-between px-5 py-3 border-t border-border">
           <p className="text-xs text-muted-foreground">⌘↵ to save · Esc to close</p>
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-accent">
-              Cancel
-            </button>
-            <button onClick={handleSave} className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:opacity-90">
-              Save
-            </button>
+            <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+            <Button size="sm" onClick={handleSave}>Save</Button>
           </div>
         </div>
       </div>

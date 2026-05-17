@@ -6,6 +6,7 @@ import { TaskProvider } from './app/contexts/TaskContext';
 import { AuthProvider } from './app/contexts/AuthContext';
 import { Toaster } from './components/ui/sonner';
 import { MigrationOverlay } from './app/components/MigrationOverlay';
+import { InviteAcceptBoundary } from './app/components/InviteAcceptBoundary';
 import { useMigration } from './app/hooks/useMigration';
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ export default function App() {
             <RouterProvider router={router} />
             <Toaster />
           </MigrationBoundary>
+          <InviteAcceptBoundary />
         </TaskProvider>
       </AuthProvider>
     </QueryClientProvider>

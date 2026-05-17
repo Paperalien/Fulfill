@@ -8,6 +8,7 @@ import { getSubtasks, getSubtaskProgress, isReminderActive } from '../utils/task
 import { SearchBar } from '../components/SearchBar';
 import { TagBadge, TagInput } from '../components/TagInput';
 import { InProgressBadge } from '../components/InProgressBadge';
+import { Button } from '@/components/ui/button';
 import TaskFields from '../components/TaskFields';
 import ReminderRecurrenceFields from '../components/ReminderRecurrenceFields';
 
@@ -237,8 +238,8 @@ function TaskRow({ task, allTasks }: { task: Task; allTasks: Task[] }) {
           </div>
 
           <div className="flex gap-2 pt-1">
-            <button onClick={handleSave} className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:opacity-90" data-testid="edit-save-btn">Save</button>
-            <button onClick={() => setEditing(false)} className="px-3 py-1 text-xs border border-border rounded hover:bg-accent" data-testid="edit-cancel-btn">Cancel</button>
+            <Button size="sm" onClick={handleSave} data-testid="edit-save-btn">Save</Button>
+            <Button variant="outline" size="sm" onClick={() => setEditing(false)} data-testid="edit-cancel-btn">Cancel</Button>
           </div>
         </div>
       )}
