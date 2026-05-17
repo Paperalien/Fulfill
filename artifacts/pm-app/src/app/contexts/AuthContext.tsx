@@ -19,6 +19,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   switchWorkspace: (id: string) => void;
   createWorkspace: (name: string) => Promise<WorkspaceSummary>;
+  refreshWorkspaces: () => Promise<void>;
   signOut: () => Promise<void>;
   signInWithEmail: (email: string) => Promise<void>;
 }
@@ -80,6 +81,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function refreshWorkspaces() {
+    try {
+      const wsList = await fetchWorkspaces();
+      setWorkspaces(wsList);
+      const stillPresent = wsList.some((w) => w.id === activeWorkspaceId);
+      if (!stillPresent) {
+        const personal = wsList.find((w) => w.isPersonal);
+        if (personal) {
+          sessionStorage.setItem(SESSION_KEY, personal.id);
+          setActiveWorkspaceId(personal.id);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to refresh workspaces:', err);
+    }
+  }
+
   function switchWorkspace(id: string) {
     sessionStorage.setItem(SESSION_KEY, id);
     setActiveWorkspaceId(id);
@@ -120,6 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated,
         switchWorkspace,
         createWorkspace,
+        refreshWorkspaces,
         signOut,
         signInWithEmail,
       }}

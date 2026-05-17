@@ -10,8 +10,10 @@ import {
   Menu,
 } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
+import { useAuth } from '../contexts/AuthContext';
 import { ReminderBanner } from './ReminderBanner';
 import { AuthArea } from './AuthArea';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import {
   Sheet,
   SheetContent,
@@ -80,6 +82,7 @@ function SidebarNav({ archivedCount, trashCount, onNavigate }: NavProps) {
 
 export default function Layout() {
   const { tasks, columns, doneColumnIds } = useTaskContext();
+  const { isAuthenticated } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
   const pageLabel = NAV_ITEMS.find(({ to, end }) =>
@@ -109,7 +112,7 @@ export default function Layout() {
             </p>
           )}
           <div className="mt-2">
-            <AuthArea />
+            {isAuthenticated ? <WorkspaceSwitcher /> : <AuthArea />}
           </div>
         </div>
         <SidebarNav {...navProps} />
