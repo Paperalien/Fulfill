@@ -276,6 +276,10 @@ pnpm -F @workspace/db run push
 exit
 ```
 
+## Agent Tests
+
+Browser automation test scripts live in `tests/agent/`. Run on demand — not loaded automatically.
+
 ## Available Skills
 
 - `/dev` — start api-server + pm-app in parallel

@@ -237,7 +237,6 @@ lib/
 - `/` — To-Do List
 - `/kanban` — Kanban Board
 - `/sprints` — Sprint Management
-- `/planning-poker` — Planning Poker
 - `/charts` — Sprint burndown charts
 - `/done` — Done Folder
 - `/trash` — Trash Bin
@@ -557,3 +556,4 @@ flowchart TB
 - **Gantt view**: depends on predecessors UI
 - **Phone number / SMS OTP**: deferred; email magic link only for now
 - **Saved views / custom fields**: Enterprise tier only
+- **Planning Poker route** (`/planning-poker`): component (`PlanningPoker.tsx`) exists but not yet wired into the router
