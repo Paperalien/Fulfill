@@ -1,0 +1,89 @@
+{
+  "version": 4,
+  "targets": {
+    "net6.0-android": {}
+  },
+  "libraries": {},
+  "projectFileDependencyGroups": {
+    "net6.0-android": []
+  },
+  "packageFolders": {
+    "/home/runner/.nuget/packages/": {}
+  },
+  "project": {
+    "version": "1.0.0",
+    "restore": {
+      "projectUniqueName": "/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/DeadMansSwitch.Mobile/DeadMansSwitch.Mobile.csproj",
+      "projectName": "DeadMansSwitch.Mobile",
+      "projectPath": "/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/DeadMansSwitch.Mobile/DeadMansSwitch.Mobile.csproj",
+      "packagesPath": "/home/runner/.nuget/packages/",
+      "outputPath": "/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/DeadMansSwitch.Mobile/obj/",
+      "projectStyle": "PackageReference",
+      "crossTargeting": true,
+      "configFilePaths": [
+        "/home/runner/.nuget/NuGet/NuGet.Config"
+      ],
+      "originalTargetFrameworks": [
+        "net6.0-android"
+      ],
+      "sources": {
+        "https://api.nuget.org/v3/index.json": {}
+      },
+      "frameworks": {
+        "net6.0-android": {
+          "framework": "net6.0-android21.0",
+          "targetAlias": "net6.0-android",
+          "projectReferences": {}
+        }
+      },
+      "warningProperties": {
+        "warnAsError": [
+          "NU1605"
+        ]
+      },
+      "restoreAuditProperties": {
+        "enableAudit": "true",
+        "auditLevel": "low",
+        "auditMode": "direct"
+      },
+      "SdkAnalysisLevel": "10.0.300"
+    },
+    "frameworks": {
+      "net6.0-android": {
+        "framework": "net6.0-android21.0",
+        "targetAlias": "net6.0-android",
+        "imports": [
+          "net461",
+          "net462",
+          "net47",
+          "net471",
+          "net472",
+          "net48",
+          "net481"
+        ],
+        "assetTargetFallback": true,
+        "warn": true,
+        "downloadDependencies": [
+          {
+            "name": "Microsoft.AspNetCore.App.Ref",
+            "version": "[6.0.36, 6.0.36]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Host.linux-x64",
+            "version": "[6.0.36, 6.0.36]"
+          },
+          {
+            "name": "Microsoft.NETCore.App.Ref",
+            "version": "[6.0.36, 6.0.36]"
+          }
+        ],
+        "frameworkReferences": {
+          "Microsoft.NETCore.App": {
+            "privateAssets": "all"
+          }
+        },
+        "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.300/RuntimeIdentifierGraph.json"
+      }
+    }
+  }
+}

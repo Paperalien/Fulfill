@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "FzfH0Z6fCVg=",
+  "success": true,
+  "projectFilePath": "/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/DeadMansSwitch.Mobile/DeadMansSwitch.Mobile.csproj",
+  "expectedPackageFiles": [
+    "/home/runner/.nuget/packages/microsoft.netcore.app.ref/6.0.36/microsoft.netcore.app.ref.6.0.36.nupkg.sha512",
+    "/home/runner/.nuget/packages/microsoft.aspnetcore.app.ref/6.0.36/microsoft.aspnetcore.app.ref.6.0.36.nupkg.sha512",
+    "/home/runner/.nuget/packages/microsoft.netcore.app.host.linux-x64/6.0.36/microsoft.netcore.app.host.linux-x64.6.0.36.nupkg.sha512"
+  ],
+  "logs": []
+}
