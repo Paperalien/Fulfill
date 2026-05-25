@@ -1,0 +1,10 @@
+<api type="debug" assembly-name="DeadMansSwitch.Mobile" mvid="8ebf9c042bbc4453856d6bdffe15317f">
+  <java-to-managed>
+    <entry java-name="crc648deb91a081d986ee/MainActivity" managed-name="DeadMansSwitch.Mobile.MainActivity, DeadMansSwitch.Mobile" managed-type-token-id="33554441" />
+    <entry java-name="crc648deb91a081d986ee/MainApplication" managed-name="DeadMansSwitch.Mobile.MainApplication, DeadMansSwitch.Mobile" managed-type-token-id="33554442" />
+  </java-to-managed>
+  <managed-to-java>
+    <entry java-name="crc648deb91a081d986ee/MainActivity" managed-name="DeadMansSwitch.Mobile.MainActivity, DeadMansSwitch.Mobile" managed-type-token-id="33554441" />
+    <entry java-name="crc648deb91a081d986ee/MainApplication" managed-name="DeadMansSwitch.Mobile.MainApplication, DeadMansSwitch.Mobile" managed-type-token-id="33554442" />
+  </managed-to-java>
+</api>
