@@ -1,7 +1,0 @@
-/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/.publish-test/DeadMansSwitch.Web
-/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/.publish-test/appsettings.Development.json
-/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/.publish-test/appsettings.json
-/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/.publish-test/DeadMansSwitch.Web.dll
-/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/.publish-test/DeadMansSwitch.Web.deps.json
-/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/.publish-test/DeadMansSwitch.Web.runtimeconfig.json
-/tmp/workspace/Paperalien/Fulfill/DeadMansSwitch/.publish-test/DeadMansSwitch.Web.pdb
