@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("DeadMansSwitch.Web")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ca4121572d9f50f0f162a360cbbe631cfef50e58")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+eeb7c35d2ab66d0fc279dac0d419fae18b94e607")]
 [assembly: System.Reflection.AssemblyProductAttribute("DeadMansSwitch.Web")]
 [assembly: System.Reflection.AssemblyTitleAttribute("DeadMansSwitch.Web")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
