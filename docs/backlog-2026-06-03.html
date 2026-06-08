@@ -1,0 +1,118 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Engineering Backlog</title><style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 15px; line-height: 1.6; color: #24292f; background: #fff;
+    max-width: 900px; margin: 0 auto; padding: 40px 48px 80px;
+  }
+  h1 { font-size: 2em; border-bottom: 1px solid #d0d7de; padding-bottom: .3em; margin-top: 1.5em; }
+  h2 { font-size: 1.5em; border-bottom: 1px solid #d0d7de; padding-bottom: .3em; margin-top: 1.5em; }
+  h3 { font-size: 1.25em; margin-top: 1.25em; }
+  code {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 85%; background: #f6f8fa; border-radius: 6px; padding: .2em .4em;
+  }
+  pre { background: #f6f8fa; border-radius: 6px; padding: 16px; overflow-x: auto; line-height: 1.45; }
+  pre code { background: none; padding: 0; font-size: 90%; }
+  blockquote { margin: 0; padding: 0 1em; color: #57606a; border-left: .25em solid #d0d7de; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #d0d7de; padding: 6px 13px; text-align: left; }
+  th { background: #f6f8fa; font-weight: 600; }
+  tr:nth-child(even) { background: #f6f8fa; }
+  a { color: #0969da; text-decoration: none; }
+  hr { border: none; border-top: 1px solid #d0d7de; margin: 2em 0; }
+  ul, ol { padding-left: 2em; }
+  li { margin: .25em 0; }
+  strong { font-weight: 600; }
+  @media print { body { padding: 20px 24px; } pre { white-space: pre-wrap; } }
+</style></head><body><h1>Engineering Backlog — Fulfill</h1>
+<p>Generated from architecture review at commit <code>b5938ac579a90e5c46acd19c9550835763c66d31</code> (2026-06-03).<br>See <code>docs/architecture-review-2026-06-03.md</code> for full rationale on each item.</p>
+<p>Story points use Fibonacci scale (1, 2, 3, 5, 8, 13). Points reflect implementation effort for a senior engineer including writing tests and verifying in a deployed environment.</p>
+<hr>
+<h2>P0 — Fix Before Next Production Deploy</h2>
+<ul>
+<li><p><input disabled="" type="checkbox"> <strong>Switch release command from <code>drizzle-kit push</code> to <code>drizzle-kit migrate</code></strong> <code>5 pts</code><br>Generate a baseline migration from the current schema state, commit it, update <code>fly.toml</code> release command, verify on a staging deploy. Requires understanding existing schema drift, if any.<br><em>Files: <code>fly.toml</code>, <code>lib/db/</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Replace <code>supabase.auth.getUser()</code> with local JWT verification</strong> <code>3 pts</code><br>Install <code>jose</code>, extract JWT secret from env, verify token locally in <code>auth.ts</code>. Remove the outbound HTTP call from the hot path. Keep <code>getUser()</code> for any session-revocation-sensitive paths.<br><em>Files: <code>artifacts/api-server/src/middlewares/auth.ts</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Add unique constraint on <code>workspaces.owner_id</code> + atomic upsert</strong> <code>2 pts</code><br>Add <code>.unique()</code> to the <code>ownerId</code> column in the Drizzle schema. Update <code>ensure-personal</code> route to use <code>INSERT ... ON CONFLICT DO NOTHING</code> pattern. Run migration.<br><em>Files: <code>lib/db/src/schema/workspaces.ts</code>, <code>artifacts/api-server/src/routes/workspaces.ts</code></em></p>
+</li>
+</ul>
+<hr>
+<h2>P1 — Fix Within the Next Sprint</h2>
+<ul>
+<li><p><input disabled="" type="checkbox"> <strong>Switch <code>DATABASE_URL</code> to PgBouncer endpoint (port 6543)</strong> <code>1 pt</code><br>Update the <code>DATABASE_URL</code> Fly secret to use the Supabase transaction pooler URL. No code changes. Verify connections stay under limit under load.<br><em>Files: Fly.io secrets only</em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Move trash-purge scheduler out of the API process</strong> <code>5 pts</code><br>Add a dedicated Fly process (<code>[processes]</code> in <code>fly.toml</code>) or configure Supabase <code>pg_cron</code> for the daily purge. Remove <code>setInterval</code> from <code>scheduler.ts</code>. Ensure only one instance runs per day regardless of machine count.<br><em>Files: <code>fly.toml</code>, <code>artifacts/api-server/src/agents/</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Add composite index <code>(workspace_id, deleted_at)</code> on tasks table</strong> <code>1 pt</code><br>Add <code>.index()</code> to the Drizzle tasks schema. Generate and apply migration.<br><em>Files: <code>lib/db/src/schema/tasks.ts</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Attach <code>workspace</code> to <code>req</code> in <code>requireWorkspaceAccess</code>; remove redundant handler checks</strong> <code>2 pts</code><br>Extend the <code>Request</code> type in <code>express.d.ts</code>. Assign <code>req.workspace</code> in the middleware after ownership check. Remove the duplicate <code>if (!req.user)</code> guards in <code>columns.ts</code> and <code>sprint-snapshots.ts</code>.<br><em>Files: <code>src/types/express.d.ts</code>, <code>middlewares/requireWorkspaceAccess.ts</code>, <code>routes/columns.ts</code>, <code>routes/sprint-snapshots.ts</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Write unit tests for <code>migrate.ts</code> ID-remapping logic</strong> <code>5 pts</code><br>Extract the column → sprint → task ID remapping algorithm into a pure function. Unit test it: correct remapping, parent task IDs patched, predecessor IDs patched, missing-ID edge cases handled, migration fails cleanly without partial writes.<br><em>Files: <code>artifacts/api-server/src/routes/migrate.ts</code> + new test file</em></p>
+</li>
+</ul>
+<hr>
+<h2>P2 — Address Before Shared Workspace Ships</h2>
+<ul>
+<li><p><input disabled="" type="checkbox"> <strong>Add <code>workspace_members</code> table, role enum, and update authorization middleware</strong> <code>13 pts</code><br>Schema: <code>workspace_members(workspace_id, user_id, role, invited_at, accepted_at)</code>. Backfill current owners as <code>admin</code>. Update <code>requireWorkspaceAccess</code> to check membership instead of <code>ownerId</code>. Audit every route that reads <code>workspace.ownerId</code> directly. Update OpenAPI spec and regenerate client. Write tests for each role boundary.<br><em>Files: <code>lib/db/src/schema/</code>, <code>middlewares/requireWorkspaceAccess.ts</code>, route files, <code>lib/api-spec/openapi.yaml</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Add <code>helmet</code> middleware for HTTP security headers</strong> <code>1 pt</code><br>Install <code>helmet</code>, add <code>app.use(helmet())</code> before routes in <code>app.ts</code>. Verify CSP doesn&#39;t break frontend asset loading.<br><em>Files: <code>artifacts/api-server/src/app.ts</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Add rate limiting to mutation endpoints</strong> <code>3 pts</code><br>Apply <code>express-rate-limit</code> to all <code>POST</code>, <code>PATCH</code>, <code>PUT</code>, <code>DELETE</code> routes — not just <code>check-email</code>. Configure sensible limits per operation class (e.g. 60 creates/min, 120 updates/min). Add <code>Retry-After</code> header.<br><em>Files: <code>artifacts/api-server/src/app.ts</code> or per-router middleware</em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Cursor-based pagination on collection endpoints</strong> <code>8 pts</code><br>Add <code>?after=&lt;order_value&gt;&amp;limit=&lt;n&gt;</code> to <code>GET /tasks</code>, <code>GET /sprints</code>, <code>GET /columns</code>. Update OpenAPI spec, regenerate client, update <code>TaskContext</code> to handle paginated responses. Add composite index if not already done.<br><em>Files: route files, <code>lib/api-spec/openapi.yaml</code>, <code>artifacts/pm-app/src/app/contexts/TaskContext.tsx</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Split <code>TaskContext.tsx</code> into focused contexts</strong> <code>8 pts</code><br>Extract sprint logic into <code>SprintContext</code>, column logic into <code>ColumnContext</code>, leave task-only logic in <code>TaskContext</code>. Each context owns its own React Query keys, mutations, and optimistic updates. Update all consumers. Run full test suite after.<br><em>Files: <code>artifacts/pm-app/src/app/contexts/</code></em></p>
+</li>
+</ul>
+<hr>
+<h2>P3 — Nice to Have</h2>
+<ul>
+<li><p><input disabled="" type="checkbox"> <strong>Replace optimistic ID construction with <code>crypto.randomUUID()</code></strong> <code>1 pt</code><br>Three call sites in <code>TaskContext.tsx</code>. Drop the <code>optimistic-${Date.now()}-${Math.random()}</code> format.<br><em>Files: <code>artifacts/pm-app/src/app/contexts/TaskContext.tsx</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Add SIGTERM handler for graceful drain</strong> <code>2 pts</code><br>In <code>index.ts</code>, listen for <code>SIGTERM</code>, stop accepting new connections, drain in-flight requests with a timeout, then exit. Required for zero-downtime Fly.io rolling deploys.<br><em>Files: <code>artifacts/api-server/src/index.ts</code></em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Audit logging for data mutations</strong> <code>13 pts</code><br>Record who changed what, when, on every <code>POST</code>/<code>PATCH</code>/<code>DELETE</code>. Options: a dedicated <code>audit_log</code> table (simple, queryable) or structured log events (Pino already in place, no new table needed). Decision needed before implementation: what retention policy, what queries will be run against it.<br><em>Files: new middleware or per-route additions, possibly new schema table</em></p>
+</li>
+<li><p><input disabled="" type="checkbox"> <strong>Enforce consistent <code>req.params</code> destructuring style</strong> <code>1 pt</code><br>Pick one pattern (top-of-handler destructuring) and apply it across all route files. Can be done as part of any other route-touching ticket or as standalone cleanup.<br><em>Files: all <code>artifacts/api-server/src/routes/*.ts</code></em></p>
+</li>
+</ul>
+<hr>
+<h2>Totals by Priority</h2>
+<p>Individual story estimates (listed per item above) use the Fibonacci scale. The figures below are the arithmetic sum of those estimates per priority group — not individual story point values.</p>
+<table>
+<thead>
+<tr>
+<th>Priority</th>
+<th>Items</th>
+<th>Sum of Story Points</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>P0</td>
+<td>3</td>
+<td>10</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>4</td>
+<td>14</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>5</td>
+<td>33</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>4</td>
+<td>17</td>
+</tr>
+<tr>
+<td><strong>Total</strong></td>
+<td><strong>16</strong></td>
+<td><strong>74</strong></td>
+</tr>
+</tbody></table>
+</body></html>
