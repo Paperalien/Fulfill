@@ -5,9 +5,9 @@ import { usersTable } from "./users";
 export const workspacesTable = pgTable("workspaces", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  ownerId: text("owner_id").notNull().references(() => usersTable.id),
+  ownerId: text("owner_id").notNull().unique().references(() => usersTable.id),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}).enableRLS();
 
 export const insertWorkspaceSchema = createInsertSchema(workspacesTable).omit({ id: true, createdAt: true });
 export type InsertWorkspace = typeof workspacesTable.$inferInsert;

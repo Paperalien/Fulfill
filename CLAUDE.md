@@ -12,7 +12,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Development (use skills instead of these directly)
 pnpm run dev                          # Start api-server + pm-app in parallel (use /dev skill)
 pnpm run codegen                      # Regenerate API client + Zod validators (use /codegen skill)
-pnpm -F @workspace/db run push        # Apply schema migrations (use /db-push skill)
+pnpm -F @workspace/db run push        # Local-only: sync schema to local DB (use /db-push skill)
+pnpm -F @workspace/db run generate    # Generate a committed migration after a schema change
+pnpm -F @workspace/db run migrate     # Apply pending migrations (prod uses this on deploy)
 
 # Testing
 pnpm -F @workspace/pm-app test        # Run Vitest unit tests
@@ -155,7 +157,12 @@ Drizzle schema lives in `lib/db/src/schema/`. Key semantic fields on `tasks`:
 | `predecessorIds` | Text array of blocking task IDs |
 | `recurrence` | `daily` \| `weekly` \| `monthly` |
 
-After modifying the Drizzle schema, run `/db-push` to apply changes.
+After modifying the Drizzle schema:
+
+1. **Locally**, iterate fast with `/db-push` (`drizzle-kit push`) against your local PostgreSQL.
+2. **Once the schema is settled**, generate a committed migration: `pnpm -F @workspace/db run generate`. This writes a new `lib/db/drizzle/NNNN_*.sql` file (and snapshot) — **commit it to git**. Production applies these files via `drizzle-kit migrate` on deploy.
+
+`push` is a dev-only tool (it diffs and emits destructive DDL with no history). It must **never** run against production — see the Deployment Architecture section.
 
 ## Environment Variables
 
@@ -196,6 +203,17 @@ Before every `git commit`, run `pnpm run typecheck` and ensure it exits clean. *
 ## Deployment Architecture
 
 Fulfill is deployed at **https://paperalien.com/fulfill**. A single Fly.io machine serves both the Express API (`/api/*`) and the React SPA (`/fulfill`) as static files baked into the Docker image at build time. Cloudflare sits in front as a free DNS proxy and SSL terminator, which avoids the need for a dedicated IP address on Fly.io. GoDaddy retains the `paperalien.com` domain registration and Microsoft 365 email (MX records are untouched); the nameservers now point to Cloudflare. Supabase provides Postgres (via Drizzle ORM) and authentication (magic links, JWT validation). The frontend is built with `BASE_PATH=/fulfill` so Vite produces correct asset paths for the subdirectory.
+
+### Security model: auth + Row Level Security (RLS)
+
+Authorization is enforced **in the Express API**, not in the database. All data access flows through the API, which connects to Postgres via Drizzle as the table-**owner** role (`DATABASE_URL`). The browser uses the Supabase publishable (anon) key **only for authentication** (magic links / session) — it never queries tables directly.
+
+However, Supabase auto-exposes every `public` table through its PostgREST endpoint (`https://<project>.supabase.co/rest/v1/<table>`), reachable by anyone with the publishable key (which is public — it ships in the frontend bundle). To close that door, **RLS is enabled with no policies on every `public` table** (`.enableRLS()` in each `lib/db/src/schema/*.ts`). With RLS on and no policy, PostgREST returns zero rows to both the `anon` and `authenticated` roles — a full deny-all — while the API is unaffected because the **table owner bypasses RLS**.
+
+Rules when adding tables or changing the DB:
+- **Every new table must call `.enableRLS()`** in its schema definition, or it's silently exposed via PostgREST.
+- **Never set `FORCE ROW LEVEL SECURITY`** — it would subject the owner (the API) to RLS and break all queries.
+- We deliberately add **no RLS policies**: authorization lives in the API, and the browser never uses PostgREST for data.
 
 ```
 You push / merge to main branch
@@ -266,15 +284,30 @@ fly releases                      # Deployment history
 
 **Database:** This project uses Drizzle Kit, not the Supabase CLI, for schema changes.
 
+The workflow differs by environment: `push` for local iteration, committed migrations applied via `migrate` for production.
+
 ```bash
-# Local dev
+# Local dev — fast iteration (diffs schema → live DB, destructive, no history)
 pnpm -F @workspace/db run push
 
-# Production (run inside the Fly machine after deploy)
-fly ssh console
-pnpm -F @workspace/db run push
-exit
+# Local dev — produce a committed migration once the schema is settled
+pnpm -F @workspace/db run generate   # writes lib/db/drizzle/NNNN_*.sql — commit it
+pnpm -F @workspace/db run migrate    # applies pending migrations to your local DB
+
+# Production — applied automatically on every deploy
+#   fly.toml `release_command = "pnpm -F @workspace/db run migrate"`
+#   runs the committed migrations in order. No manual `fly ssh` step is needed,
+#   and `push` must NEVER be run against production.
 ```
+
+**Migration model.** `migrate` applies only unapplied migration files (tracked in the `__drizzle_migrations` table) in order — it has history and is safe to re-run. `push`, by contrast, inspects the live DB and emits whatever DDL (including `DROP`) reconciles it to the schema, with no history or rollback. That is why production deploys use `migrate`.
+
+**Baseline reset (one-time).** A database previously managed with `push` has no `__drizzle_migrations` table, so the first `migrate` run fails trying to re-`CREATE` existing tables. To adopt migrations, reset the database once so history starts clean:
+
+- *Production (Supabase dashboard → SQL Editor):* `DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;` then deploy (the `release_command` runs `migrate` against the empty schema). Dropping the `drizzle` schema clears migration history (`drizzle.__drizzle_migrations`); without it, `migrate` would skip everything and leave the schema empty.
+- *Local:* `dropdb <name> && createdb <name>` (name from your local `DATABASE_URL`), then `pnpm -F @workspace/db run migrate`.
+
+After the reset, all schema changes flow through `generate` (commit the SQL) → deploy.
 
 ## Available Skills
 

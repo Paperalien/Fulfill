@@ -8,6 +8,20 @@
       "when": 1775511375768,
       "tag": "0000_optimal_giant_man",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780948894901,
+      "tag": "0001_bored_spirit",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781103292155,
+      "tag": "0002_kind_true_believers",
+      "breakpoints": true
     }
   ]
 }

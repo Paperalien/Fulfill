@@ -11,7 +11,7 @@ export const columnsTable = pgTable("columns", {
   color: text("color"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}).enableRLS();
 
 export const insertColumnSchema = createInsertSchema(columnsTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertColumn = typeof columnsTable.$inferInsert;

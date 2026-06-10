@@ -13,7 +13,7 @@ export const sprintSnapshotsTable = pgTable("sprint_snapshots", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   unique().on(t.sprintId, t.date),
-]);
+]).enableRLS();
 
 export const insertSprintSnapshotSchema = createInsertSchema(sprintSnapshotsTable).omit({ id: true, createdAt: true });
 export type InsertSprintSnapshot = typeof sprintSnapshotsTable.$inferInsert;
