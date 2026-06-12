@@ -1,8 +1,19 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 const FROM = "Fulfill <accounts@paperalien.com>";
+
+// Construct the Resend client lazily (R3): doing it at module load throws
+// "Missing API key" when RESEND_API_KEY is unset, which would crash the whole
+// server on boot — even for deployments/dev that never send mail. Build it on
+// first use instead, and fail with a clear error only when a send is attempted.
+let client: Resend | null = null;
+function resendClient(): Resend {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not set — cannot send email");
+  }
+  return (client ??= new Resend(apiKey));
+}
 
 export async function sendInvitationEmail(opts: {
   to: string;
@@ -12,7 +23,7 @@ export async function sendInvitationEmail(opts: {
 }): Promise<void> {
   const { to, inviterEmail, workspaceName, inviteUrl } = opts;
 
-  await resend.emails.send({
+  const { error } = await resendClient().emails.send({
     from: FROM,
     to,
     subject: `${inviterEmail} invited you to join ${workspaceName} on Fulfill`,
@@ -33,4 +44,11 @@ export async function sendInvitationEmail(opts: {
       </p>
     `,
   });
+
+  // Surface delivery failures (R3): Resend reports API errors via the returned
+  // `{ error }` rather than throwing, so the previous code silently reported
+  // success even when no email was sent. Throw so the caller returns a real error.
+  if (error) {
+    throw new Error(`Failed to send invitation email: ${error.message ?? String(error)}`);
+  }
 }

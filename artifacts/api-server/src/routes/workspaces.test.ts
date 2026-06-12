@@ -55,6 +55,7 @@ vi.mock("@workspace/db/schema", () => ({
   workspacesTable: {},
   columnsTable: {},
   workspaceMembersTable: {},
+  usersTable: {},
 }));
 
 vi.mock("drizzle-orm", () => ({
@@ -133,7 +134,8 @@ describe("POST /workspaces/ensure-personal", () => {
     await handler(makeReq(), res, vi.fn());
 
     expect(res.json).toHaveBeenCalledWith({ workspaceId: "ws-existing" });
-    expect(mockConflictDoNothing).toHaveBeenCalledOnce();
+    // two upserts: user provisioning (R2) + membership safety-net
+    expect(mockConflictDoNothing).toHaveBeenCalledTimes(2);
     expect(mockTransaction).not.toHaveBeenCalled();
   });
 
@@ -145,6 +147,8 @@ describe("POST /workspaces/ensure-personal", () => {
     await handler(makeReq(), res, vi.fn());
 
     expect(mockTransaction).toHaveBeenCalledOnce();
+    // user row is provisioned (R2) before the workspace transaction
+    expect(mockConflictDoNothing).toHaveBeenCalledOnce();
     const { workspaceId } = res.json.mock.calls[0][0];
     expect(workspaceId).toMatch(/^[0-9a-f-]{36}$/);
   });

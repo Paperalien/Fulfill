@@ -5,6 +5,7 @@ import {
   workspacesTable,
   columnsTable,
   workspaceMembersTable,
+  usersTable,
 } from "@workspace/db/schema";
 import { and, eq, desc, sql } from "drizzle-orm";
 import { requireWorkspaceAccess } from "../middlewares/requireWorkspaceAccess";
@@ -47,6 +48,15 @@ router.post("/ensure-personal", async (req, res) => {
   }
 
   try {
+    // Provision the user (R2): every authenticated user must exist in `users`
+    // before any workspace/member FK can reference them. ensure-personal is the
+    // login bootstrap (called once on every login), so it is the single place
+    // that guarantees the row exists. Idempotent via ON CONFLICT DO NOTHING.
+    await db
+      .insert(usersTable)
+      .values({ id: user.id, email: user.email })
+      .onConflictDoNothing();
+
     const [existing] = await db
       .select({ id: workspacesTable.id })
       .from(workspacesTable)
