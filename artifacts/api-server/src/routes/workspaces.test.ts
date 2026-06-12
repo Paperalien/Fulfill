@@ -98,7 +98,12 @@ function makeRes() {
 function getHandler(path: string, method = "post") {
   const stack = (router as any).stack as any[];
   const layer = stack.find((l: any) => l.route?.path === path && l.route?.methods?.[method]);
-  return layer?.route?.stack?.[0]?.handle as Function;
+  // Return the LAST handler in the route's stack — i.e. the actual route handler,
+  // regardless of any route-level middleware (e.g. requireWorkspaceAccess) mounted
+  // before it. These are unit tests of the handler in isolation; the guard is
+  // covered separately in requireWorkspaceAccess.test.ts and end-to-end in
+  // routes.integration.test.ts.
+  return layer?.route?.stack?.at(-1)?.handle as Function;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

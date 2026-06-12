@@ -51,3 +51,9 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+
+# Local e2e: minted Supabase session (live tokens) + recorded artifacts
+*.e2e-session.json
+.e2e-session.json
+tests/e2e/.e2e-out/
+tests/e2e/node_modules/

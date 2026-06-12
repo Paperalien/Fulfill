@@ -7,6 +7,7 @@ import {
   workspaceMembersTable,
 } from "@workspace/db/schema";
 import { and, eq, desc, sql } from "drizzle-orm";
+import { requireWorkspaceAccess } from "../middlewares/requireWorkspaceAccess";
 
 const router: IRouter = Router();
 
@@ -196,8 +197,8 @@ router.post("/", async (req, res) => {
 
 // PATCH /workspaces/:workspaceId/name
 // Rename a shared workspace. Personal workspaces cannot be renamed.
-// requireWorkspaceAccess has already verified the caller is a member.
-router.patch("/:workspaceId/name", async (req, res) => {
+// requireWorkspaceAccess (applied here) verifies the caller is a member.
+router.patch("/:workspaceId/name", requireWorkspaceAccess, async (req, res) => {
   const { workspaceId } = req.params as { workspaceId: string };
   const parsed = RenameWorkspaceBody.safeParse(req.body);
   if (!parsed.success) {
@@ -237,8 +238,8 @@ router.patch("/:workspaceId/name", async (req, res) => {
 // POST /workspaces/:workspaceId/leave
 // Remove the authenticated user from the workspace.
 // Personal workspaces cannot be left.
-// requireWorkspaceAccess has already verified the caller is a member.
-router.post("/:workspaceId/leave", async (req, res) => {
+// requireWorkspaceAccess (applied here) verifies the caller is a member.
+router.post("/:workspaceId/leave", requireWorkspaceAccess, async (req, res) => {
   const user = req.user!;
   const { workspaceId } = req.params as { workspaceId: string };
 
