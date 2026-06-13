@@ -4,8 +4,6 @@
 **Spec source:** `guidelines/Workspaces-Design.md`  
 **Prepared:** 2026-05-17
 
----
-
 ## Executive Summary
 
 Workspaces transforms Fulfill from a single-user personal productivity tool into a shared team collaboration platform. Every entity in the app — tasks, kanban columns, sprints, snapshots — already belongs to a workspace in the data model. Today each user has exactly one workspace and owns it exclusively. This feature introduces:
@@ -298,6 +296,7 @@ All new routes are authenticated (require Bearer token). Add to `artifacts/api-s
 | `POST` | `/invitations/:token/accept` | Accept an invitation (auth required) |
 
 **`POST /workspaces` — creation rules:**
+
 1. Check name is not empty, ≤ 20 characters.
 2. Check name is not already taken (query partial-unique index or a pre-check SELECT).
 3. Insert workspace with `isPersonal = false`.
@@ -306,12 +305,14 @@ All new routes are authenticated (require Bearer token). Add to `artifacts/api-s
 6. Return `{ workspaceId, name }`.
 
 **`POST /workspaces/:workspaceId/leave`:**
+
 1. Middleware confirms caller is a member.
 2. Confirm workspace is not personal (`isPersonal = false`).
 3. Delete the `workspace_members` row.
 4. Do NOT cascade-delete the workspace or its data — it becomes abandoned if all members leave.
 
 **`POST /invitations/:token/accept`:**
+
 1. Look up invitation by token.
 2. Check `!used && expiresAt > now()`. If expired: return 410 Gone with a message the client can display.
 3. Check invitee is not already a member (idempotent).
@@ -358,6 +359,7 @@ InvitationResponse:
 ```
 
 After editing the spec, run `/codegen` to regenerate:
+
 - `lib/api-client-react/src/generated/` — new React Query hooks
 - `lib/api-zod/src/generated/` — new Zod validators
 
@@ -385,6 +387,7 @@ interface AuthContextValue {
 ```
 
 **Active workspace persistence (per-tab):**
+
 - On login: call `GET /workspaces` to load the list; read `sessionStorage.getItem('fulfill:active-workspace')` to restore the last active workspace for this tab; fallback to the personal workspace.
 - `switchWorkspace(id)`: update state + write to `sessionStorage`.
 - On tab open with no sessionStorage entry: default to personal workspace.
@@ -398,6 +401,7 @@ interface AuthContextValue {
 **File:** `artifacts/pm-app/src/app/components/WorkspaceSwitcher.tsx`
 
 A dropdown (Radix `DropdownMenu`) in the sidebar. When authenticated:
+
 - Displays current workspace name with a chevron.
 - Dropdown lists all workspaces the user is a member of; highlights the active one.
 - "Create workspace" option at the bottom → opens an inline form or modal.
@@ -412,6 +416,7 @@ Mounted in `Layout.tsx` inside the sidebar header, below the brand name.
 **File:** `artifacts/pm-app/src/app/components/InviteModal.tsx`
 
 A modal (Radix `Dialog`) with a single email input and a Send button. On submit:
+
 - POST to `/workspaces/:activeWorkspaceId/invitations`.
 - On success: show a confirmation message ("Invitation sent to [email]").
 - On error (workspace is personal, or API failure): show inline error.
@@ -421,6 +426,7 @@ A modal (Radix `Dialog`) with a single email input and a Send button. On submit:
 **File:** `artifacts/pm-app/src/app/components/InviteAcceptBoundary.tsx`
 
 Wraps the app in `App.tsx` (outside `AuthProvider`). On mount:
+
 1. Check `new URLSearchParams(window.location.search).get('invite')`.
 2. If a token is present, store it in `sessionStorage` (`fulfill:pending-invite`).
 3. Clean the token from the URL (`history.replaceState`).
@@ -444,6 +450,7 @@ Add `<WorkspaceSwitcher />` to the sidebar header, below the brand. When authent
 **File:** `artifacts/pm-app/src/app/routes.tsx`
 
 Add the Planning Poker route:
+
 ```typescript
 { path: '/planning-poker', element: <PlanningPoker /> }
 ```
@@ -466,6 +473,7 @@ if (activeWorkspace?.isPersonal) {
 ### Modified: `SidebarNav` (inside `Layout.tsx`)
 
 Add Planning Poker nav item:
+
 ```typescript
 { to: '/planning-poker', label: 'Planning Poker', icon: <SquareStack /> }
 ```
@@ -776,6 +784,7 @@ Add `tests/agent/workspace-invite-flow.md` — step-by-step test for the full in
 Use this checklist when implementation is complete. File findings in `guidelines/reviews/` using the standard template in `guidelines/features-guide.md § 7`.
 
 ### Security (review these first)
+
 - [ ] A user with a valid session but who is not a member of workspace X receives 403 on all workspace X endpoints
 - [ ] An invitation token cannot be guessed (32-byte random = 256-bit entropy — verify implementation)
 - [ ] An expired invitation returns 410, not 200
@@ -784,18 +793,21 @@ Use this checklist when implementation is complete. File findings in `guidelines
 - [ ] The `GET /workspaces/check-name` endpoint does not leak which names are taken in a way that enables enumeration attacks (consider rate limiting)
 
 ### Data integrity
+
 - [ ] Leaving a workspace does not delete the workspace or its data
 - [ ] All tasks/columns/sprints in an abandoned workspace remain intact
 - [ ] Creating a workspace with a duplicate name returns a clear error before inserting
 - [ ] The backfill is idempotent — running it twice does not create duplicate `workspace_members` rows
 
 ### Auth and context
+
 - [ ] Switching workspaces does not carry over tasks from the previous workspace
 - [ ] `isAuthenticated` remains `true` during a workspace switch (no flash of unauthenticated state)
 - [ ] A fresh tab (no sessionStorage) defaults to the personal workspace, not an arbitrary workspace
 - [ ] After accepting an invitation, the new workspace is active and visible in the switcher
 
 ### UX
+
 - [ ] The workspace switcher is discoverable without explanation
 - [ ] Creating a workspace from within the switcher gives clear feedback on name validation errors
 - [ ] The Planning Poker personal-workspace banner is informative, not alarming
@@ -803,6 +815,7 @@ Use this checklist when implementation is complete. File findings in `guidelines
 - [ ] An expired invitation link shows a useful error, not a blank page or generic 500
 
 ### Performance
+
 - [ ] `GET /workspaces` is called once on login, not on every page navigation
 - [ ] Switching workspaces does not re-fetch all workspaces from the API — only the task/sprint/column data for the new workspace
 - [ ] The `requireWorkspaceAccess` membership query is indexed (the PK on `(workspace_id, user_id)` covers it)
