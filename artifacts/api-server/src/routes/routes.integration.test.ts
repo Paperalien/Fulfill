@@ -14,8 +14,8 @@ import type { AddressInfo } from "node:net";
 //   2. rename/leave ARE guarded → 403 for a non-member
 //   3. a member passes the guard through to the rename handler (200)
 //
-// Only the DB connection and Supabase auth are mocked; routing, requireAuth and
-// requireWorkspaceAccess run for real.
+// The DB connection and requireAuth are mocked; routing and requireWorkspaceAccess
+// run for real (the latter is what these guard/shadowing tests actually exercise).
 
 const { mockLimit, mockOrderBy, mockUpdateWhere, mockDeleteWhere, mockConflict } = vi.hoisted(() => ({
   mockLimit: vi.fn(),
@@ -51,16 +51,14 @@ vi.mock("resend", () => ({
   },
 }));
 
-// requireAuth validates the bearer token via supabase.auth.getUser — stub a user.
-vi.mock("@supabase/supabase-js", () => ({
-  createClient: () => ({
-    auth: {
-      getUser: vi.fn(async () => ({
-        data: { user: { id: "user-1", email: "user@example.com" } },
-        error: null,
-      })),
-    },
-  }),
+// Production auth verifies the Supabase JWT locally via jose/JWKS. These routing
+// tests don't exercise token verification — stub requireAuth to inject a fixed
+// user so the focus stays on routing + requireWorkspaceAccess.
+vi.mock("../middlewares/auth", () => ({
+  requireAuth: (req: { user?: { id: string; email: string } }, _res: unknown, next: () => void) => {
+    req.user = { id: "user-1", email: "user@example.com" };
+    next();
+  },
 }));
 
 // Import after mocks so the router picks up the mocked db/auth.

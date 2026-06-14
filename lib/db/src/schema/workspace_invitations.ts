@@ -15,7 +15,7 @@ export const workspaceInvitationsTable = pgTable("workspace_invitations", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   used: boolean("used").notNull().default(false),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }),
-});
+}).enableRLS(); // deny-all via PostgREST; the API (table owner) bypasses RLS
 
 export const insertWorkspaceInvitationSchema = createInsertSchema(workspaceInvitationsTable).omit({
   createdAt: true,

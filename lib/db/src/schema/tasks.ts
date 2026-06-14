@@ -25,7 +25,7 @@ export const tasksTable = pgTable("tasks", {
   recurrence: text("recurrence"), // 'daily' | 'weekly' | 'monthly'
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}).enableRLS();
 
 export const insertTaskSchema = createInsertSchema(tasksTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertTask = typeof tasksTable.$inferInsert;

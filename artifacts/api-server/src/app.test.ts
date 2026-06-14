@@ -28,15 +28,14 @@ vi.mock("resend", () => ({
     emails = { send: vi.fn(async () => ({ data: { id: "stub" }, error: null })) };
   },
 }));
-vi.mock("@supabase/supabase-js", () => ({
-  createClient: () => ({
-    auth: {
-      getUser: vi.fn(async () => ({
-        data: { user: { id: "user-1", email: "user@example.com" } },
-        error: null,
-      })),
-    },
-  }),
+// Production auth verifies the Supabase JWT locally via jose/JWKS. Stub requireAuth
+// to a pass-through so the /api 404 test reaches the fallback handler (the SPA
+// serving contract is what this file exercises, not token verification).
+vi.mock("./middlewares/auth", () => ({
+  requireAuth: (req: { user?: { id: string; email: string } }, _res: unknown, next: () => void) => {
+    req.user = { id: "user-1", email: "user@example.com" };
+    next();
+  },
 }));
 vi.mock("@workspace/db", () => ({ db: {} }));
 

@@ -8,7 +8,7 @@ export const workspaceMembersTable = pgTable("workspace_members", {
   joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [
   primaryKey({ columns: [t.workspaceId, t.userId] }),
-]);
+]).enableRLS(); // deny-all via PostgREST; the API (table owner) bypasses RLS
 
 export type WorkspaceMember = typeof workspaceMembersTable.$inferSelect;
 export type InsertWorkspaceMember = typeof workspaceMembersTable.$inferInsert;

@@ -1,0 +1,307 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Architecture Review</title><style>
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    font-size: 15px; line-height: 1.6; color: #24292f; background: #fff;
+    max-width: 900px; margin: 0 auto; padding: 40px 48px 80px;
+  }
+  h1 { font-size: 2em; border-bottom: 1px solid #d0d7de; padding-bottom: .3em; margin-top: 1.5em; }
+  h2 { font-size: 1.5em; border-bottom: 1px solid #d0d7de; padding-bottom: .3em; margin-top: 1.5em; }
+  h3 { font-size: 1.25em; margin-top: 1.25em; }
+  code {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 85%; background: #f6f8fa; border-radius: 6px; padding: .2em .4em;
+  }
+  pre { background: #f6f8fa; border-radius: 6px; padding: 16px; overflow-x: auto; line-height: 1.45; }
+  pre code { background: none; padding: 0; font-size: 90%; }
+  blockquote { margin: 0; padding: 0 1em; color: #57606a; border-left: .25em solid #d0d7de; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #d0d7de; padding: 6px 13px; text-align: left; }
+  th { background: #f6f8fa; font-weight: 600; }
+  tr:nth-child(even) { background: #f6f8fa; }
+  a { color: #0969da; text-decoration: none; }
+  hr { border: none; border-top: 1px solid #d0d7de; margin: 2em 0; }
+  ul, ol { padding-left: 2em; }
+  li { margin: .25em 0; }
+  strong { font-weight: 600; }
+  @media print { body { padding: 20px 24px; } pre { white-space: pre-wrap; } }
+</style></head><body><h1>Architecture &amp; Code Review — Fulfill</h1>
+<p><strong>Reviewed at commit:</strong> <code>b5938ac579a90e5c46acd19c9550835763c66d31</code><br><strong>Branch:</strong> <code>copilot/create-repository-dead-mans-switch</code><br><strong>Date:</strong> 2026-06-03<br><strong>Reviewer:</strong> Claude (claude-sonnet-4-6) — prompted by Christian</p>
+<p>All findings below are anchored to the codebase state at the commit above. Re-evaluate any finding before acting on it if significant time has passed.</p>
+<hr>
+<h2>Part 1: Senior Architect View — Production &amp; Scalability</h2>
+<h3>1.1 The Drizzle Push Problem (Critical)</h3>
+<p>The <code>fly.toml</code> release command is:</p>
+<pre><code class="language-toml">release_command = &quot;pnpm -F @workspace/db run push&quot;
+</code></pre>
+<p><code>drizzle-kit push</code> is a <strong>development tool</strong>. It inspects the live database schema, diffs it against your TypeScript schema, and emits destructive DDL to reconcile them — including <code>DROP COLUMN</code>, <code>DROP TABLE</code>, and re-creations. It has no migration history, no rollback, and no lock. Running it as the release command of a production deployment means every deploy is a potential data-loss event.</p>
+<p>The correct production path is <code>drizzle-kit generate</code> (produces SQL migration files, committed to git) and <code>drizzle-kit migrate</code> (applies only unapplied migrations in order).</p>
+<p><strong>Fix:</strong> Switch <code>fly.toml</code> release command from <code>push</code> to <code>migrate</code>. Commit all existing schema state as a baseline migration file. From that point on, all schema changes must go through <code>drizzle-kit generate</code>.</p>
+<hr>
+<h3>1.2 The Scheduler in a Serverless-ish Environment (Critical)</h3>
+<p><code>artifacts/api-server/src/agents/scheduler.ts</code> runs the trash purge via <code>setTimeout</code> + <code>setInterval</code> bound to the Node.js process. <code>fly.toml</code> has <code>min_machines_running = 0</code> and <code>auto_start_machines = true</code>.</p>
+<p><strong>Problems:</strong></p>
+<ul>
+<li><strong>Uncoordinated multi-instance runs:</strong> If traffic spikes cause Fly to spin up multiple machines, each machine starts its own scheduler. The purge (<code>DELETE WHERE deletedAt &lt; now() - 30 days</code>) runs N times concurrently. Not data-corrupting, but uncontrolled and wasteful.</li>
+<li><strong>Cold-start coupling:</strong> With <code>min_machines_running = 0</code>, every cold start restarts the scheduler. Sporadic traffic = multiple scheduler restarts = purge running far more than once a day.</li>
+<li><strong>No persistence or dead-letter:</strong> If the machine dies mid-purge, there is no record of whether it ran or what it deleted.</li>
+<li><strong>No SIGTERM handling:</strong> Fly sends SIGTERM on deploy/scale-down. The in-flight transaction is abandoned without cleanup.</li>
+</ul>
+<p><strong>Fix options (pick one):</strong></p>
+<ol>
+<li>Fly.io <code>[processes]</code> — a dedicated cron machine running <code>node dist/agents/scheduler.js</code> with <code>min_machines_running = 1</code>. Isolates scheduling from the API process.</li>
+<li>Supabase <code>pg_cron</code> extension — run the purge as a database job. No application code involved.</li>
+<li>A proper job queue (BullMQ + Redis) if you add more background jobs in the future.</li>
+</ol>
+<hr>
+<h3>1.3 Auth Middleware Makes a Network Call Per Request (High)</h3>
+<pre><code class="language-typescript">// artifacts/api-server/src/middlewares/auth.ts
+const { data, error } = await supabase.auth.getUser(token);
+</code></pre>
+<p><code>supabase.auth.getUser()</code> makes an HTTP request to the Supabase Auth API on every authenticated request. Under load this means:</p>
+<ul>
+<li>Every request carries 50–150ms of external HTTP latency added to its response time.</li>
+<li>You are subject to Supabase Auth&#39;s rate limits.</li>
+<li>If Supabase Auth has any outage, your entire API returns 401s — Supabase&#39;s uptime becomes your API&#39;s uptime.</li>
+<li>100 concurrent requests = 100 simultaneous outbound HTTP calls from a 256MB machine.</li>
+</ul>
+<p>Supabase JWTs are signed RS256 tokens. They can be verified <strong>locally</strong> using your project&#39;s JWT secret (Supabase dashboard → Project Settings → API → JWT Secret). Local verification is a pure-CPU operation taking microseconds, with no network dependency.</p>
+<p><strong>Fix:</strong> Replace <code>supabase.auth.getUser(token)</code> with local JWT verification via <code>jose</code> or <code>jsonwebtoken</code>. Reserve the remote <code>getUser()</code> call for operations that need real-time session revocation checks (password changes, account deletion, suspicious activity detection).</p>
+<hr>
+<h3>1.4 No Database Connection Pool (High)</h3>
+<p><code>lib/db/src/index.ts</code> creates a direct <code>postgres</code> connection. The Supabase free tier allows 60 connections; pro allows 200. Each Fly machine under load holds connections open per active request. Across multiple machines or under concurrent load, you will hit <code>too many connections</code> errors.</p>
+<p><strong>Fix:</strong> Connect to Supabase via the PgBouncer endpoint (port <code>6543</code> instead of <code>5432</code>) in transaction pooling mode. This is available on all Supabase projects at no extra cost. No code changes required — only the <code>DATABASE_URL</code> in Fly secrets changes.</p>
+<hr>
+<h3>1.5 The &quot;Ensure Personal Workspace&quot; Race Condition (High)</h3>
+<p><code>artifacts/api-server/src/routes/workspaces.ts</code> — the <code>POST /workspaces/ensure-personal</code> handler runs:</p>
+<pre><code class="language-typescript">await db.transaction(async (tx) =&gt; {
+  const [existing] = await tx.select()...where(eq(workspacesTable.ownerId, userId));
+  if (existing) return existing;
+  const [workspace] = await tx.insert(workspacesTable)...
+  // 4 column inserts follow
+});
+</code></pre>
+<p>Two simultaneous requests (browser double-tap, network retry, or two tabs) can both pass the <code>SELECT</code> check before either <code>INSERT</code> completes, creating two workspaces for the same user. The user&#39;s data then lands in whichever workspace the frontend happens to use, and the other orphaned workspace accumulates nothing.</p>
+<p><strong>Fix:</strong> Add a <code>UNIQUE</code> constraint on <code>workspaces.owner_id</code> in the schema. Replace the select-then-insert with <code>INSERT ... ON CONFLICT (owner_id) DO NOTHING RETURNING *</code>, then fall back to a <code>SELECT</code> if the insert returned nothing. This makes the operation atomic at the database level.</p>
+<hr>
+<h3>1.6 No Shared Workspace / Multi-User Authorization Model (High)</h3>
+<p>The current workspace authorization in <code>requireWorkspaceAccess.ts</code>:</p>
+<pre><code class="language-typescript">if (workspace.ownerId !== req.user!.id) {
+  res.status(403).json({ error: &quot;Forbidden&quot; });
+}
+</code></pre>
+<p>This is an <strong>owner-equals-user</strong> model. There is no <code>workspace_members</code> table, no roles (admin/member/viewer), no invitation flow. If shared workspaces are added later, this middleware requires a complete rewrite, and every route that assumes <code>ownerId === currentUser</code> needs auditing.</p>
+<p><strong>The cost of waiting:</strong> Every other table (<code>tasks</code>, <code>columns</code>, <code>sprints</code>, <code>sprint_snapshots</code>) FKs to <code>workspaces</code>. Adding a <code>workspace_members</code> join table later means a production migration on the central table, plus re-auditing every authorization check in every route.</p>
+<p><strong>Fix:</strong> Add the data model now, even if the feature ships empty. Add <code>workspace_members(workspace_id, user_id, role ENUM(&#39;admin&#39;,&#39;member&#39;,&#39;viewer&#39;), invited_at, accepted_at)</code>. Backfill the current owner as <code>admin</code>. Update <code>requireWorkspaceAccess</code> to check membership instead of ownership. The UI feature can ship later; the schema needs to be right first.</p>
+<hr>
+<h3>1.7 No Pagination, No Query Budget (Medium)</h3>
+<p>Every collection endpoint returns the full dataset with no <code>LIMIT</code>:</p>
+<pre><code class="language-typescript">// artifacts/api-server/src/routes/tasks.ts
+const tasks = await db.select().from(tasksTable)
+  .where(and(eq(tasksTable.workspaceId, workspaceId), isNull(tasksTable.deletedAt)));
+</code></pre>
+<p>A workspace with 10,000 tasks sends 10,000 rows over the wire on every page load. The database also has no index on <code>deleted_at</code>, so <code>WHERE workspace_id = X AND deleted_at IS NULL</code> does a full index scan on <code>workspace_id</code> then filters <code>deleted_at</code> in memory.</p>
+<p><strong>Fix (two steps):</strong></p>
+<ol>
+<li>Add a composite index on <code>(workspace_id, deleted_at)</code> on the tasks table in the Drizzle schema.</li>
+<li>Add cursor-based pagination using the existing <code>order</code> field. Tasks are already ordered; a <code>?after=&lt;order_value&gt;&amp;limit=100</code> parameter is the minimum viable change.</li>
+</ol>
+<hr>
+<h3>1.8 <code>fly.toml</code> Contains Supabase Project URL in Git History (Low-Medium)</h3>
+<pre><code class="language-toml">[build.args]
+  VITE_SUPABASE_URL = &quot;https://jxdhdyxivyrmkeuxisre.supabase.co&quot;
+  VITE_SUPABASE_ANON_KEY = &quot;sb_publishable_fFBBT56oDE0jr7y7VCeCEw_FFVr6Wdc&quot;
+</code></pre>
+<p>The anon key is a publishable key by design — it&#39;s safe to be public. However the project URL reveals your Supabase project ID, which is enough to enumerate the Auth API, attempt signups against your project, and probe any publicly accessible storage buckets or Edge Functions. This project intentionally bypasses Row Level Security (RLS) in favor of application-level auth, which means the anon key&#39;s effective power is limited — but the project URL is now permanently in git history.</p>
+<p><strong>Mitigation:</strong> This cannot be undone from git history without a force-push. For the future, pass these via Fly.io build secrets (<code>fly secrets set --stage</code>) rather than committed <code>fly.toml</code> build args. The actual risk is low given the anon key&#39;s limited permissions; flag it for awareness, not immediate action.</p>
+<hr>
+<h2>Part 2: Code Review — Average Software Engineer</h2>
+<p>An engineer at median industry experience would write exactly this code. The patterns are competent and correct.</p>
+<h3>Strengths</h3>
+<ul>
+<li>The Zod validation + OpenAPI codegen pipeline is solid. Using <code>safeParse()</code> rather than <code>parse()</code> (which throws) throughout is the right call for an HTTP context.</li>
+<li>Transaction usage in <code>artifacts/api-server/src/routes/sprints.ts</code> for the &quot;only one active sprint&quot; invariant is exactly right. Many average engineers miss that this needs a transaction.</li>
+<li>The pino logger with redaction of <code>authorization</code> and <code>cookie</code> headers shows real production awareness.</li>
+<li>The optimistic update pattern in <code>TaskContext.tsx</code> — cancel, snapshot, set optimistic, rollback on error, invalidate on settle — is textbook React Query and is implemented correctly.</li>
+</ul>
+<h3>Issues</h3>
+<p><strong>Redundant auth checks in route handlers.</strong> Several files (<code>columns.ts:16–19</code>, <code>sprint-snapshots.ts:14–17</code>) open with:</p>
+<pre><code class="language-typescript">if (!req.user) {
+  res.status(401).json({ error: &quot;Unauthorized&quot; });
+  return;
+}
+</code></pre>
+<p>...after <code>requireAuth</code> and <code>requireWorkspaceAccess</code> have already verified <code>req.user</code> is set. This reveals uncertainty about whether the middleware will always run, which in turn reveals a lack of middleware-layer tests. The fix is tests on the middleware, not more guards in the handlers.</p>
+<p><strong><code>TaskContext.tsx</code> is 611 lines.</strong> It handles task CRUD, bulk operations, archiving, deletion, column management, sprint management, snapshot recording, and optimistic updates — all in one context. This is the classic &quot;it works so we never split it&quot; growth pattern. When the next engineer needs to touch sprint logic, they&#39;ll load the entire task context into their head to find it.</p>
+<p><strong><code>migrate.ts</code> is a procedural script in a route handler.</strong> The ID-remapping algorithm (building <code>Map&lt;localId, serverId&gt;</code> for columns, sprints, and tasks, then patching foreign keys) is a non-trivial piece of logic embedded directly in an HTTP handler with no unit tests. This is exactly the category of code where bugs appear three months after ship when someone has a task whose <code>parentId</code> points to another task in the same migration batch.</p>
+<p><strong>Inconsistent parameter destructuring.</strong> Some routes destructure <code>req.params</code> at the top; others access <code>req.params.workspaceId</code> inline. Neither is wrong; the inconsistency indicates no enforced style convention.</p>
+<hr>
+<h2>Part 3: Code Review — Fresh CS Graduate (MIT / Caltech / Imperial)</h2>
+<p>A fresh graduate from a top CS program brings strong theoretical foundations and recently learned best practices. They also bring two blind spots: they haven&#39;t been paged at 3am for a production incident, and they haven&#39;t developed the intuition for what matters versus what&#39;s merely elegant.</p>
+<h3>What They&#39;d Write Well</h3>
+<p>The overall architecture shows exactly the judgment a recent grad who did their homework would apply: one source of truth (OpenAPI spec), generate everything else (Zod validators, React Query hooks). The TypeScript is thorough and consistent. The schema separation (each table in its own file, all re-exported from <code>schema/index.ts</code>) is clean.</p>
+<h3>Academic Tells</h3>
+<p><strong>Optimistic ID format.</strong> The current implementation:</p>
+<pre><code class="language-typescript">const optimisticId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+</code></pre>
+<p>A recent grad knows about <code>crypto.randomUUID()</code> and would use it. The string-prefixed format suggests copying a tutorial example. <code>crypto.randomUUID()</code> is available natively in Node.js 19+ and produces a collision-resistant ID without the timestamp-plus-weak-random construction.</p>
+<p><strong>What they&#39;d flag that senior engineers accept.</strong> The <code>requireWorkspaceAccess</code> middleware fetches the workspace from the database and then discards it:</p>
+<pre><code class="language-typescript">// middlewares/requireWorkspaceAccess.ts
+const [workspace] = await db.select().from(workspacesTable).where(...);
+if (!workspace || workspace.ownerId !== req.user!.id) { ... }
+// workspace is dropped — route handlers that need it fetch it again
+</code></pre>
+<p>Some route handlers that genuinely need workspace data after this point do a second database lookup. A recent grad who just finished a systems course would immediately flag this as an unnecessary round-trip and attach <code>req.workspace = workspace</code>. They would be correct. The fix is straightforward: add <code>workspace</code> to the Express <code>Request</code> type augmentation in <code>src/types/express.d.ts</code> and assign it in the middleware.</p>
+<h3>What They&#39;d Miss</h3>
+<p>The scheduler problem, the cold-start behavior on <code>min_machines_running = 0</code>, the Drizzle push-in-production issue, the Supabase auth network call per request — none of these would be on their radar. They&#39;d assume the framework and platform handle it. The &quot;ensure personal workspace&quot; race condition specifically requires experience with concurrent distributed systems to recognize; it&#39;s not in any coursework syllabus.</p>
+<h3>What They&#39;d Over-engineer</h3>
+<p>A recent grad who aced their software engineering course would look at routes like <code>tasks.ts</code> — which does HTTP handling, business logic, and database access in the same file — and want to introduce a repository pattern, a service layer, and dependency injection (perhaps <code>tsyringe</code> or <code>inversify</code>). They&#39;d be architecturally correct that the layers are mixed. For an application of this scale, that indirection would slow development without improving reliability. The YAGNI principle is learned from production experience, not textbooks.</p>
+<hr>
+<h2>Backlog: Prioritized Action List</h2>
+<h3>P0 — Fix Before Next Production Deploy</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Finding</th>
+<th>File(s)</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>Switch release command from <code>drizzle-kit push</code> to <code>drizzle-kit migrate</code></td>
+<td><code>fly.toml</code>, <code>lib/db/</code></td>
+<td>~4h</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Local JWT verification instead of <code>supabase.auth.getUser()</code> per request</td>
+<td><code>artifacts/api-server/src/middlewares/auth.ts</code></td>
+<td>~2h</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Unique constraint on <code>workspaces.owner_id</code> + atomic upsert pattern</td>
+<td><code>lib/db/src/schema/workspaces.ts</code>, <code>artifacts/api-server/src/routes/workspaces.ts</code></td>
+<td>~1h</td>
+</tr>
+</tbody></table>
+<h3>P1 — Fix Within the Next Sprint</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Finding</th>
+<th>File(s)</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>4</td>
+<td>Switch <code>DATABASE_URL</code> to PgBouncer endpoint (port 6543)</td>
+<td>Fly.io secrets only, no code</td>
+<td>~30m</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Move scheduler to a dedicated Fly process or Supabase pg_cron</td>
+<td><code>fly.toml</code>, <code>artifacts/api-server/src/agents/</code></td>
+<td>~3h</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Add composite index <code>(workspace_id, deleted_at)</code> on tasks</td>
+<td><code>lib/db/src/schema/tasks.ts</code></td>
+<td>~30m</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Attach <code>workspace</code> to <code>req</code> in <code>requireWorkspaceAccess</code>; remove redundant handler checks</td>
+<td><code>middlewares/requireWorkspaceAccess.ts</code>, <code>src/types/express.d.ts</code>, route files</td>
+<td>~2h</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Add unit tests for <code>migrate.ts</code> ID-remapping logic</td>
+<td>new test file</td>
+<td>~3h</td>
+</tr>
+</tbody></table>
+<h3>P2 — Technical Debt, Address Before Shared Workspace Ships</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Finding</th>
+<th>File(s)</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>9</td>
+<td>Add <code>workspace_members</code> table + role enum; update auth middleware</td>
+<td><code>lib/db/src/schema/</code>, <code>middlewares/requireWorkspaceAccess.ts</code></td>
+<td>~1d</td>
+</tr>
+<tr>
+<td>10</td>
+<td>Add helmet middleware for security headers</td>
+<td><code>artifacts/api-server/src/app.ts</code></td>
+<td>~30m</td>
+</tr>
+<tr>
+<td>11</td>
+<td>Add rate limiting to mutation endpoints (not just <code>check-email</code>)</td>
+<td><code>artifacts/api-server/src/app.ts</code> or per-router</td>
+<td>~2h</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Cursor-based pagination on collection endpoints</td>
+<td><code>artifacts/api-server/src/routes/tasks.ts</code>, sprints, columns</td>
+<td>~1d</td>
+</tr>
+<tr>
+<td>13</td>
+<td>Split <code>TaskContext.tsx</code> (611 lines) into task, sprint, and column contexts</td>
+<td><code>artifacts/pm-app/src/app/contexts/</code></td>
+<td>~1d</td>
+</tr>
+</tbody></table>
+<h3>P3 — Nice to Have</h3>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Finding</th>
+<th>File(s)</th>
+<th>Effort</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>14</td>
+<td>Replace <code>optimistic-${Date.now()}-${Math.random()}</code> with <code>crypto.randomUUID()</code></td>
+<td><code>artifacts/pm-app/src/app/contexts/TaskContext.tsx</code></td>
+<td>~15m</td>
+</tr>
+<tr>
+<td>15</td>
+<td>Add SIGTERM handler for graceful drain</td>
+<td><code>artifacts/api-server/src/index.ts</code></td>
+<td>~1h</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Audit logging for data mutations (who changed what, when)</td>
+<td>new middleware or per-route</td>
+<td>~2d</td>
+</tr>
+<tr>
+<td>17</td>
+<td>Enforce consistent <code>req.params</code> destructuring style via ESLint rule or convention doc</td>
+<td>various route files</td>
+<td>~1h</td>
+</tr>
+</tbody></table>
+</body></html>
