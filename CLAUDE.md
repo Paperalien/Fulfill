@@ -202,7 +202,11 @@ Before every `git commit`, run `pnpm run typecheck` and ensure it exits clean. *
 
 ## Deployment Architecture
 
-Fulfill is deployed at **https://paperalien.com/fulfill**. A single Fly.io machine serves both the Express API (`/api/*`) and the React SPA (`/fulfill`) as static files baked into the Docker image at build time. Cloudflare sits in front as a free DNS proxy and SSL terminator, which avoids the need for a dedicated IP address on Fly.io. GoDaddy retains the `paperalien.com` domain registration and Microsoft 365 email (MX records are untouched); the nameservers now point to Cloudflare. Supabase provides Postgres (via Drizzle ORM) and authentication (magic links, JWT validation). The frontend is built with `BASE_PATH=/fulfill` so Vite produces correct asset paths for the subdirectory.
+Fulfill runs at **https://fulfill.paperalien.com** — its own subdomain. A single Fly.io app (`fulfill-paperalien`, region `lax`) serves both the Express API (`/api/*`) and the React SPA (served at the **root**, `/`) as static files baked into the Docker image at build time. The subdomain CNAMEs **directly** to `fulfill-paperalien.fly.dev`, and Fly issues + auto-renews its own Let's Encrypt certificate via `fly certs add` — **no Cloudflare, no reverse proxy, no dedicated IP** (a subdomain CNAME avoids the apex-can't-CNAME problem that would otherwise require those). GoDaddy keeps the `paperalien.com` registration, DNS (nameservers `domaincontrol.com`), the Website Builder homepage at the apex, and email (MX untouched). The SPA is built with `BASE_PATH=/` so it serves from the root of the subdomain. Supabase provides Postgres (via Drizzle ORM) and authentication (magic links, JWT validation).
+
+> **Brand model:** every app on the `paperalien.com` brand gets its **own subdomain** pointed at its own host/stack (`fulfill.paperalien.com`, `<next>.paperalien.com`, …). The apex stays a pure homepage that links out — nothing is centrally proxied.
+>
+> **Operator wiring** (DNS, Fly secrets, Supabase URL config, Resend domain) is a one-time checklist in [`docs/production-deployment.md`](docs/production-deployment.md).
 
 ### Security model: auth + Row Level Security (RLS)
 
@@ -234,26 +238,25 @@ You push / merge to main branch
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                         YOUR BROWSER                            │
-│                   https://paperalien.com/fulfill                │
+│                  https://fulfill.paperalien.com                 │
 └───────────────────────────┬─────────────────────────────────────┘
                             │ HTTPS
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     CLOUDFLARE  (free)                          │
+│              GoDaddy DNS  (nameservers: domaincontrol.com)      │
 │                                                                 │
-│  • Holds DNS for paperalien.com (nameservers moved from GoDaddy)│
-│  • CNAME flattening: paperalien.com → fulfill-paperalien.fly.dev│
-│  • Issues SSL cert for paperalien.com                           │
-│  • Email MX records untouched — routes to GoDaddy/Microsoft 365 │
+│  • paperalien.com / www  → GoDaddy Website Builder homepage    │
+│  • fulfill  CNAME →  fulfill-paperalien.fly.dev                │
+│  • Email MX records untouched                                  │
 └───────────────────────────┬─────────────────────────────────────┘
-                            │ HTTPS (Fly's *.fly.dev cert, SSL mode: Full)
+                            │ HTTPS (Fly-issued Let's Encrypt cert for the subdomain)
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │              FLY.IO  (fulfill-paperalien, 256 MB shared)        │
 │                     Express 5 server, port 3000                 │
 │                                                                 │
-│   /fulfill/*  ──► serves React SPA (built into Docker image)   │
-│   /api/*      ──► Express routes                               │
+│   /api/*  ──► Express routes                                   │
+│   /*      ──► serves React SPA at root (built into the image)  │
 └────────────────────┬──────────────────────┬─────────────────────┘
                      │                      │
                      ▼                      ▼
@@ -280,7 +283,7 @@ fly secrets list                  # List secret names (values are never shown)
 fly releases                      # Deployment history
 ```
 
-**Cloudflare:** No useful CLI for DNS/SSL management — use the dashboard at dash.cloudflare.com. (`wrangler` CLI is for Cloudflare Workers; not relevant here.)
+**DNS / TLS:** DNS is managed in the **GoDaddy** dashboard (nameservers `domaincontrol.com`). The subdomain's TLS certificate is managed by Fly — `fly certs add fulfill.paperalien.com` to provision, `fly certs show fulfill.paperalien.com` to check status; Fly auto-renews. There is no Cloudflare.
 
 **Database:** This project uses Drizzle Kit, not the Supabase CLI, for schema changes.
 
@@ -308,6 +311,10 @@ pnpm -F @workspace/db run migrate    # applies pending migrations to your local 
 - *Local:* `dropdb <name> && createdb <name>` (name from your local `DATABASE_URL`), then `pnpm -F @workspace/db run migrate`.
 
 After the reset, all schema changes flow through `generate` (commit the SQL) → deploy.
+
+## Agent Tests
+
+Browser automation test scripts live in `tests/agent/`. Run on demand — not loaded automatically.
 
 ## Available Skills
 

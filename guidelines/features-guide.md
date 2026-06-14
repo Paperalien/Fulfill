@@ -166,9 +166,9 @@ When the user is **not signed in**, a **Save your data** (envelope) icon appears
 | Points by task | Live task query | Story points per task (bar chart) |
 
 **Sprint snapshot mechanism:**
-- Once per page-load (not per day), the frontend upserts a snapshot for each active sprint: `{ date: today, total: sum(storyPoints), done: sum(storyPoints where semanticStatus='done' or archivedAt set) }`.
+- Once per app load, `TaskContext` upserts a snapshot for each active sprint: `{ date: today, total: sum(storyPoints), done: sum(storyPoints where semanticStatus='done' or archivedAt set) }`. This fires in a `useEffect` (guarded by `snapshotRecordedRef`) on TaskContext initialization — not on navigation to `/charts`.
 - The `(sprintId, date)` pair has a unique constraint — repeated upserts on the same day are idempotent.
-- This is a client-initiated write, not a background job. If the user never opens `/charts`, no snapshots are recorded.
+- This is a client-initiated write, not a background job. Snapshots are recorded on every app load that has an active sprint, regardless of which page the user visits.
 
 **Design intent reviewers should evaluate:**
 - Burndown gaps (days with no snapshot) should degrade gracefully (interpolation or visible gap — pick one and be consistent).

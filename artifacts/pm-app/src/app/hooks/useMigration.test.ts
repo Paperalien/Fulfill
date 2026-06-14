@@ -49,7 +49,7 @@ import { useMigration } from './useMigration';
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function authOk() {
-  mockUseAuth.mockReturnValue({ isAuthenticated: true, workspaceId: 'ws1' });
+  mockUseAuth.mockReturnValue({ isAuthenticated: true, activeWorkspaceId: 'ws1' });
   mockGetSession.mockResolvedValue({ data: { session: { access_token: 'tok' } } });
 }
 
@@ -64,7 +64,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   mockHasLocalData.mockReturnValue(false);
-  mockUseAuth.mockReturnValue({ isAuthenticated: false, workspaceId: null });
+  mockUseAuth.mockReturnValue({ isAuthenticated: false, activeWorkspaceId: null });
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -76,7 +76,7 @@ describe('useMigration', () => {
   });
 
   it('stays idle when hasLocalData is false', () => {
-    mockUseAuth.mockReturnValue({ isAuthenticated: true, workspaceId: 'ws1' });
+    mockUseAuth.mockReturnValue({ isAuthenticated: true, activeWorkspaceId: 'ws1' });
     mockHasLocalData.mockReturnValue(false);
     const { result } = renderHook(() => useMigration());
     expect(result.current.status).toBe('idle');

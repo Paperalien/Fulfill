@@ -15,7 +15,7 @@ type MigrationStatus = 'idle' | 'migrating' | 'error';
 const MIGRATION_TIMEOUT_MS = 60_000;
 
 export function useMigration() {
-  const { isAuthenticated, workspaceId } = useAuth();
+  const { isAuthenticated, activeWorkspaceId } = useAuth();
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<MigrationStatus>('idle');
   const triggeredRef = useRef(false);
@@ -42,7 +42,7 @@ export function useMigration() {
       const timeoutId = setTimeout(() => controller.abort(), MIGRATION_TIMEOUT_MS);
 
       try {
-        const resp = await fetch(`${baseUrl}/api/workspaces/${workspaceId}/migrate`, {
+        const resp = await fetch(`${baseUrl}/api/workspaces/${activeWorkspaceId}/migrate`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -69,16 +69,16 @@ export function useMigration() {
   }
 
   useEffect(() => {
-    if (!isAuthenticated || !workspaceId) return;
+    if (!isAuthenticated || !activeWorkspaceId) return;
     if (!hasLocalData()) return;
     if (triggeredRef.current) return;
     triggeredRef.current = true;
     runMigration();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, workspaceId]);
+  }, [isAuthenticated, activeWorkspaceId]);
 
   function retry() {
-    if (!isAuthenticated || !workspaceId || !hasLocalData()) return;
+    if (!isAuthenticated || !activeWorkspaceId || !hasLocalData()) return;
     triggeredRef.current = true;
     runMigration();
   }

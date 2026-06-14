@@ -14,6 +14,8 @@ tags:
     description: User operations
   - name: workspaces
     description: Workspace operations
+  - name: invitations
+    description: Workspace invitation operations
   - name: columns
     description: Column operations
   - name: sprints
@@ -76,6 +78,169 @@ paths:
                 properties:
                   workspaceId:
                     type: string
+
+  /workspaces:
+    get:
+      operationId: listWorkspaces
+      tags: [workspaces]
+      summary: List workspaces
+      description: Returns all workspaces the authenticated user is a member of. Personal workspace is always first.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of workspaces
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkspaceSummary"
+    post:
+      operationId: createWorkspace
+      tags: [workspaces]
+      summary: Create a shared workspace
+      description: Creates a new shared workspace. Seeds 4 default columns.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWorkspaceRequest"
+      responses:
+        "201":
+          description: Workspace created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceCreated"
+        "400":
+          description: Invalid name
+        "409":
+          description: A workspace with that name already exists
+
+  /workspaces/check-name:
+    get:
+      operationId: checkWorkspaceName
+      tags: [workspaces]
+      summary: Check workspace name availability
+      description: Returns whether the given name is available for a new shared workspace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: query
+          required: true
+          description: The workspace name to check (max 20 characters).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Name availability result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceNameAvailability"
+        "400":
+          description: Name missing or too long
+
+  /workspaces/{workspaceId}/name:
+    patch:
+      operationId: renameWorkspace
+      tags: [workspaces]
+      summary: Rename a workspace
+      description: Renames a shared workspace. Personal workspaces cannot be renamed.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenameWorkspaceRequest"
+      responses:
+        "200":
+          description: Workspace renamed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceRenamed"
+        "400":
+          description: Invalid name
+        "403":
+          description: Cannot rename a personal workspace
+        "409":
+          description: A workspace with that name already exists
+
+  /workspaces/{workspaceId}/leave:
+    post:
+      operationId: leaveWorkspace
+      tags: [workspaces]
+      summary: Leave a workspace
+      description: Removes the authenticated user from the workspace. Personal workspaces cannot be left.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      responses:
+        "204":
+          description: Successfully left the workspace
+        "403":
+          description: Cannot leave a personal workspace
+
+  /workspaces/{workspaceId}/invitations:
+    post:
+      operationId: createInvitation
+      tags: [invitations]
+      summary: Invite a user to a workspace
+      description: Creates an invitation record and sends an email to the invitee. Personal workspaces cannot be invited to.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/workspaceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationRequest"
+      responses:
+        "201":
+          description: Invitation created and email sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationCreated"
+        "400":
+          description: Invalid email address
+        "403":
+          description: Cannot invite to a personal workspace
+
+  /invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      tags: [invitations]
+      summary: Accept a workspace invitation
+      description: Adds the authenticated user to the workspace identified by the invitation token. Returns 410 if the invitation is expired or already used.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/invitationToken"
+      responses:
+        "200":
+          description: Invitation accepted — user is now a workspace member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationAccepted"
+        "404":
+          description: Invitation not found
+        "410":
+          description: Invitation expired or already used
 
   /workspaces/{workspaceId}/migrate:
     post:
@@ -498,6 +663,13 @@ components:
       description: The task ID.
       schema:
         type: string
+    invitationToken:
+      name: token
+      in: path
+      required: true
+      description: The invitation token.
+      schema:
+        type: string
 
   schemas:
     HealthStatus:
@@ -507,6 +679,93 @@ components:
           type: string
       required:
         - status
+
+    WorkspaceSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        isPersonal:
+          type: boolean
+        memberCount:
+          type: integer
+      required:
+        - id
+        - name
+        - isPersonal
+        - memberCount
+
+    CreateWorkspaceRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 20
+
+    WorkspaceCreated:
+      type: object
+      required: [workspaceId, name]
+      properties:
+        workspaceId:
+          type: string
+        name:
+          type: string
+
+    WorkspaceNameAvailability:
+      type: object
+      required: [available]
+      properties:
+        available:
+          type: boolean
+
+    RenameWorkspaceRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 20
+
+    WorkspaceRenamed:
+      type: object
+      required: [workspaceId, name]
+      properties:
+        workspaceId:
+          type: string
+        name:
+          type: string
+
+    CreateInvitationRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    InvitationCreated:
+      type: object
+      required: [id, inviteeEmail, expiresAt]
+      properties:
+        id:
+          type: string
+        inviteeEmail:
+          type: string
+        expiresAt:
+          type: string
+          description: ISO datetime
+
+    InvitationAccepted:
+      type: object
+      required: [workspaceId]
+      properties:
+        workspaceId:
+          type: string
 
     Workspace:
       type: object

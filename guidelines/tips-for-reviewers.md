@@ -5,11 +5,11 @@ Guidance on writing findings that Claude Code can act on accurately. The finding
 ---
 ## Claude's capabilities
 
-** Claude is incredibly powerful and works at a senior or principle level software engineer. Review feedback should be written to to that level of understanding.
+Claude is incredibly powerful and works at a senior or principal level software engineer. Review feedback should be written to that level of understanding.
 
-** Claude has medium quality UI/UX  abilities. It gets the job done pretty well but isn't excellent. Any comments in this space will need to provide more detailed instructions and explanations.
+Claude has medium-quality UI/UX abilities — it gets the job done pretty well but isn't excellent. Any comments in this space will need to provide more detailed instructions and explanations.
 
-** While generally excellent, Claude is prone to occasional hallucinations and omissions, and this is particularly true of the capabilities and configurations of outside tools and systems.
+While generally excellent, Claude is prone to occasional hallucinations and omissions, and this is particularly true of the capabilities and configurations of outside tools and systems.
 
 ---
 

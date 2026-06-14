@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { Vote } from 'lucide-react';
+import { Vote, Users } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const FIBONACCI = [1, 2, 3, 5, 8, 13, 21];
 
 export default function PlanningPoker() {
   const { tasks, updateTask } = useTaskContext();
+  const { workspaces, activeWorkspaceId } = useAuth();
   const [selectedTaskId, setSelectedTaskId] = useState<string>('');
   const [voted, setVoted] = useState(false);
+
+  const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
+  const isPersonal = !activeWs || activeWs.isPersonal;
 
   const activeTasks = tasks.filter((t) => !t.archivedAt && !t.deletedAt);
   const selectedTask = activeTasks.find((t) => t.id === selectedTaskId);
@@ -25,6 +30,16 @@ export default function PlanningPoker() {
         <Vote size={24} className="text-primary" />
         <h2 className="text-lg font-semibold">Planning Poker</h2>
       </div>
+
+      {isPersonal && (
+        <div className="flex gap-3 items-start mb-6 p-4 rounded-lg border border-border bg-muted/40 text-sm text-muted-foreground">
+          <Users size={16} className="shrink-0 mt-0.5" />
+          <p>
+            Planning Poker is most useful when estimating work with a team.
+            Switch to a shared workspace — or create one — to collaborate with others.
+          </p>
+        </div>
+      )}
 
       <div className="mb-6">
         <label className="block text-sm font-medium mb-2">Select a task to estimate</label>

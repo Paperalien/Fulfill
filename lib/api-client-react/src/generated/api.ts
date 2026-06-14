@@ -20,17 +20,23 @@ import type {
   BulkArchiveRequest,
   CheckEmailRequest,
   CheckEmailResponse,
+  CheckWorkspaceNameParams,
   Column,
   CreateColumnRequest,
+  CreateInvitationRequest,
   CreateSprintRequest,
   CreateSprintSnapshotRequest,
   CreateTaskRequest,
+  CreateWorkspaceRequest,
   DeleteColumnParams,
   EnsurePersonalWorkspace200,
   GetSprintSnapshotsParams,
   HealthStatus,
+  InvitationAccepted,
+  InvitationCreated,
   MigrateLocalDataRequest,
   MigrateLocalDataResponse,
+  RenameWorkspaceRequest,
   ReorderColumnsRequest,
   Sprint,
   SprintSnapshot,
@@ -39,6 +45,10 @@ import type {
   UpdateColumnRequest,
   UpdateSprintRequest,
   UpdateTaskRequest,
+  WorkspaceCreated,
+  WorkspaceNameAvailability,
+  WorkspaceRenamed,
+  WorkspaceSummary,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -296,6 +306,616 @@ export const useEnsurePersonalWorkspace = <
   TContext
 > => {
   return useMutation(getEnsurePersonalWorkspaceMutationOptions(options));
+};
+
+/**
+ * Returns all workspaces the authenticated user is a member of. Personal workspace is always first.
+ * @summary List workspaces
+ */
+export const getListWorkspacesUrl = () => {
+  return `/api/workspaces`;
+};
+
+export const listWorkspaces = async (
+  options?: RequestInit,
+): Promise<WorkspaceSummary[]> => {
+  return customFetch<WorkspaceSummary[]>(getListWorkspacesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListWorkspacesQueryKey = () => {
+  return [`/api/workspaces`] as const;
+};
+
+export const getListWorkspacesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWorkspaces>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listWorkspaces>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListWorkspacesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listWorkspaces>>> = ({
+    signal,
+  }) => listWorkspaces({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWorkspaces>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListWorkspacesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWorkspaces>>
+>;
+export type ListWorkspacesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List workspaces
+ */
+
+export function useListWorkspaces<
+  TData = Awaited<ReturnType<typeof listWorkspaces>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listWorkspaces>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListWorkspacesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Creates a new shared workspace. Seeds 4 default columns.
+ * @summary Create a shared workspace
+ */
+export const getCreateWorkspaceUrl = () => {
+  return `/api/workspaces`;
+};
+
+export const createWorkspace = async (
+  createWorkspaceRequest: CreateWorkspaceRequest,
+  options?: RequestInit,
+): Promise<WorkspaceCreated> => {
+  return customFetch<WorkspaceCreated>(getCreateWorkspaceUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createWorkspaceRequest),
+  });
+};
+
+export const getCreateWorkspaceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWorkspace>>,
+    TError,
+    { data: BodyType<CreateWorkspaceRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createWorkspace>>,
+  TError,
+  { data: BodyType<CreateWorkspaceRequest> },
+  TContext
+> => {
+  const mutationKey = ["createWorkspace"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createWorkspace>>,
+    { data: BodyType<CreateWorkspaceRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createWorkspace(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateWorkspaceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createWorkspace>>
+>;
+export type CreateWorkspaceMutationBody = BodyType<CreateWorkspaceRequest>;
+export type CreateWorkspaceMutationError = ErrorType<void>;
+
+/**
+ * @summary Create a shared workspace
+ */
+export const useCreateWorkspace = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWorkspace>>,
+    TError,
+    { data: BodyType<CreateWorkspaceRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createWorkspace>>,
+  TError,
+  { data: BodyType<CreateWorkspaceRequest> },
+  TContext
+> => {
+  return useMutation(getCreateWorkspaceMutationOptions(options));
+};
+
+/**
+ * Returns whether the given name is available for a new shared workspace.
+ * @summary Check workspace name availability
+ */
+export const getCheckWorkspaceNameUrl = (params: CheckWorkspaceNameParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/workspaces/check-name?${stringifiedParams}`
+    : `/api/workspaces/check-name`;
+};
+
+export const checkWorkspaceName = async (
+  params: CheckWorkspaceNameParams,
+  options?: RequestInit,
+): Promise<WorkspaceNameAvailability> => {
+  return customFetch<WorkspaceNameAvailability>(
+    getCheckWorkspaceNameUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getCheckWorkspaceNameQueryKey = (
+  params?: CheckWorkspaceNameParams,
+) => {
+  return [`/api/workspaces/check-name`, ...(params ? [params] : [])] as const;
+};
+
+export const getCheckWorkspaceNameQueryOptions = <
+  TData = Awaited<ReturnType<typeof checkWorkspaceName>>,
+  TError = ErrorType<void>,
+>(
+  params: CheckWorkspaceNameParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof checkWorkspaceName>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getCheckWorkspaceNameQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof checkWorkspaceName>>
+  > = ({ signal }) => checkWorkspaceName(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof checkWorkspaceName>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type CheckWorkspaceNameQueryResult = NonNullable<
+  Awaited<ReturnType<typeof checkWorkspaceName>>
+>;
+export type CheckWorkspaceNameQueryError = ErrorType<void>;
+
+/**
+ * @summary Check workspace name availability
+ */
+
+export function useCheckWorkspaceName<
+  TData = Awaited<ReturnType<typeof checkWorkspaceName>>,
+  TError = ErrorType<void>,
+>(
+  params: CheckWorkspaceNameParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof checkWorkspaceName>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getCheckWorkspaceNameQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * Renames a shared workspace. Personal workspaces cannot be renamed.
+ * @summary Rename a workspace
+ */
+export const getRenameWorkspaceUrl = (workspaceId: string) => {
+  return `/api/workspaces/${workspaceId}/name`;
+};
+
+export const renameWorkspace = async (
+  workspaceId: string,
+  renameWorkspaceRequest: RenameWorkspaceRequest,
+  options?: RequestInit,
+): Promise<WorkspaceRenamed> => {
+  return customFetch<WorkspaceRenamed>(getRenameWorkspaceUrl(workspaceId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(renameWorkspaceRequest),
+  });
+};
+
+export const getRenameWorkspaceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof renameWorkspace>>,
+    TError,
+    { workspaceId: string; data: BodyType<RenameWorkspaceRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof renameWorkspace>>,
+  TError,
+  { workspaceId: string; data: BodyType<RenameWorkspaceRequest> },
+  TContext
+> => {
+  const mutationKey = ["renameWorkspace"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof renameWorkspace>>,
+    { workspaceId: string; data: BodyType<RenameWorkspaceRequest> }
+  > = (props) => {
+    const { workspaceId, data } = props ?? {};
+
+    return renameWorkspace(workspaceId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RenameWorkspaceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof renameWorkspace>>
+>;
+export type RenameWorkspaceMutationBody = BodyType<RenameWorkspaceRequest>;
+export type RenameWorkspaceMutationError = ErrorType<void>;
+
+/**
+ * @summary Rename a workspace
+ */
+export const useRenameWorkspace = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof renameWorkspace>>,
+    TError,
+    { workspaceId: string; data: BodyType<RenameWorkspaceRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof renameWorkspace>>,
+  TError,
+  { workspaceId: string; data: BodyType<RenameWorkspaceRequest> },
+  TContext
+> => {
+  return useMutation(getRenameWorkspaceMutationOptions(options));
+};
+
+/**
+ * Removes the authenticated user from the workspace. Personal workspaces cannot be left.
+ * @summary Leave a workspace
+ */
+export const getLeaveWorkspaceUrl = (workspaceId: string) => {
+  return `/api/workspaces/${workspaceId}/leave`;
+};
+
+export const leaveWorkspace = async (
+  workspaceId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getLeaveWorkspaceUrl(workspaceId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getLeaveWorkspaceMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof leaveWorkspace>>,
+    TError,
+    { workspaceId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof leaveWorkspace>>,
+  TError,
+  { workspaceId: string },
+  TContext
+> => {
+  const mutationKey = ["leaveWorkspace"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof leaveWorkspace>>,
+    { workspaceId: string }
+  > = (props) => {
+    const { workspaceId } = props ?? {};
+
+    return leaveWorkspace(workspaceId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LeaveWorkspaceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof leaveWorkspace>>
+>;
+
+export type LeaveWorkspaceMutationError = ErrorType<void>;
+
+/**
+ * @summary Leave a workspace
+ */
+export const useLeaveWorkspace = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof leaveWorkspace>>,
+    TError,
+    { workspaceId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof leaveWorkspace>>,
+  TError,
+  { workspaceId: string },
+  TContext
+> => {
+  return useMutation(getLeaveWorkspaceMutationOptions(options));
+};
+
+/**
+ * Creates an invitation record and sends an email to the invitee. Personal workspaces cannot be invited to.
+ * @summary Invite a user to a workspace
+ */
+export const getCreateInvitationUrl = (workspaceId: string) => {
+  return `/api/workspaces/${workspaceId}/invitations`;
+};
+
+export const createInvitation = async (
+  workspaceId: string,
+  createInvitationRequest: CreateInvitationRequest,
+  options?: RequestInit,
+): Promise<InvitationCreated> => {
+  return customFetch<InvitationCreated>(getCreateInvitationUrl(workspaceId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createInvitationRequest),
+  });
+};
+
+export const getCreateInvitationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createInvitation>>,
+    TError,
+    { workspaceId: string; data: BodyType<CreateInvitationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createInvitation>>,
+  TError,
+  { workspaceId: string; data: BodyType<CreateInvitationRequest> },
+  TContext
+> => {
+  const mutationKey = ["createInvitation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createInvitation>>,
+    { workspaceId: string; data: BodyType<CreateInvitationRequest> }
+  > = (props) => {
+    const { workspaceId, data } = props ?? {};
+
+    return createInvitation(workspaceId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateInvitationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createInvitation>>
+>;
+export type CreateInvitationMutationBody = BodyType<CreateInvitationRequest>;
+export type CreateInvitationMutationError = ErrorType<void>;
+
+/**
+ * @summary Invite a user to a workspace
+ */
+export const useCreateInvitation = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createInvitation>>,
+    TError,
+    { workspaceId: string; data: BodyType<CreateInvitationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createInvitation>>,
+  TError,
+  { workspaceId: string; data: BodyType<CreateInvitationRequest> },
+  TContext
+> => {
+  return useMutation(getCreateInvitationMutationOptions(options));
+};
+
+/**
+ * Adds the authenticated user to the workspace identified by the invitation token. Returns 410 if the invitation is expired or already used.
+ * @summary Accept a workspace invitation
+ */
+export const getAcceptInvitationUrl = (token: string) => {
+  return `/api/invitations/${token}/accept`;
+};
+
+export const acceptInvitation = async (
+  token: string,
+  options?: RequestInit,
+): Promise<InvitationAccepted> => {
+  return customFetch<InvitationAccepted>(getAcceptInvitationUrl(token), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAcceptInvitationMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptInvitation>>,
+    TError,
+    { token: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acceptInvitation>>,
+  TError,
+  { token: string },
+  TContext
+> => {
+  const mutationKey = ["acceptInvitation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acceptInvitation>>,
+    { token: string }
+  > = (props) => {
+    const { token } = props ?? {};
+
+    return acceptInvitation(token, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcceptInvitationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acceptInvitation>>
+>;
+
+export type AcceptInvitationMutationError = ErrorType<void>;
+
+/**
+ * @summary Accept a workspace invitation
+ */
+export const useAcceptInvitation = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptInvitation>>,
+    TError,
+    { token: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof acceptInvitation>>,
+  TError,
+  { token: string },
+  TContext
+> => {
+  return useMutation(getAcceptInvitationMutationOptions(options));
 };
 
 /**

@@ -14,12 +14,19 @@ primary_region = 'lax'
 [deploy]
   release_command = "pnpm -F @workspace/db run migrate"
 
+[env]
+  # Public origin of the app — used to build workspace invitation links.
+  # The app is served at the root of its own subdomain.
+  APP_URL = "https://fulfill.paperalien.com"
+
 [http_service]
   internal_port = 3000
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
+  # Keep one machine always on: avoids cold-start latency on the first request
+  # after idle, and lets the in-process trash-purge scheduler run reliably.
+  min_machines_running = 1
 
 [[vm]]
   memory = '256mb'

@@ -5,13 +5,16 @@ import {
   LayoutGrid,
   Calendar,
   BarChart2,
+  Vote,
   Archive,
   Trash2,
   Menu,
 } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
+import { useAuth } from '../contexts/AuthContext';
 import { ReminderBanner } from './ReminderBanner';
 import { AuthArea } from './AuthArea';
+import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import {
   Sheet,
   SheetContent,
@@ -33,6 +36,7 @@ const NAV_ITEMS = [
   { to: '/kanban', label: 'Kanban', icon: LayoutGrid },
   { to: '/sprints', label: 'Sprint', icon: Calendar },
   { to: '/charts', label: 'Charts', icon: BarChart2 },
+  { to: '/planning-poker', label: 'Planning Poker', icon: Vote },
   { to: '/done', label: 'Done', icon: Archive },
   { to: '/trash', label: 'Trash', icon: Trash2 },
 ];
@@ -80,6 +84,7 @@ function SidebarNav({ archivedCount, trashCount, onNavigate }: NavProps) {
 
 export default function Layout() {
   const { tasks, columns, doneColumnIds } = useTaskContext();
+  const { isAuthenticated } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
   const pageLabel = NAV_ITEMS.find(({ to, end }) =>
@@ -109,7 +114,7 @@ export default function Layout() {
             </p>
           )}
           <div className="mt-2">
-            <AuthArea />
+            {isAuthenticated ? <WorkspaceSwitcher /> : <AuthArea />}
           </div>
         </div>
         <SidebarNav {...navProps} />
