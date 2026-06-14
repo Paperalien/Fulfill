@@ -10,7 +10,7 @@ RUN pnpm install --frozen-lockfile
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_ANON_KEY
 
-RUN BASE_PATH=/fulfill \
+RUN BASE_PATH=/ \
     VITE_SUPABASE_URL=$VITE_SUPABASE_URL \
     VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY \
     pnpm -F @workspace/pm-app run build

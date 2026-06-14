@@ -49,8 +49,15 @@ app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
 app.use("/api", router);
 
-app.use('/fulfill', express.static(frontendDist));
-app.get('/fulfill/*splat', (_req, res) => {
+// Serve the SPA at the root (the app lives at the root of its own subdomain,
+// e.g. https://fulfill.paperalien.com). Static assets first; any unmatched
+// /api/* path returns a JSON 404 (so API consumers never receive index.html);
+// everything else falls through to the SPA shell for client-side routing.
+app.use(express.static(frontendDist));
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: "Not found" });
+});
+app.get('/*splat', (_req, res) => {
   res.sendFile(path.join(frontendDist, 'index.html'));
 });
 
