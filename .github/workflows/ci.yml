@@ -1,0 +1,40 @@
+name: CI
+on:
+  pull_request:
+
+# Cancel superseded runs for the same PR.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, tests, drift & schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm run typecheck
+
+      - name: API server tests
+        run: pnpm -F @workspace/api-server test
+
+      - name: PM app tests
+        run: pnpm -F @workspace/pm-app test
+
+      - name: Check API drift (Agent A)
+        run: pnpm check:drift
+
+      - name: Check schema safety (Agent B)
+        run: pnpm check:schema
