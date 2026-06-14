@@ -39,8 +39,8 @@ Runtime config the server needs. `APP_URL` is already set non-secret in `fly.tom
    - **`DATABASE_URL`** — the production Postgres connection string. Recommended: reuse the existing
      **Supabase** Postgres. In the Supabase dashboard → **Project Settings → Database →
      Connection string**, choose the **Session pooler** (port `5432`) or the direct connection
-     (drizzle-kit `push` runs DDL, which needs a session/direct connection, not the transaction
-     pooler on `6543`). Substitute your DB password where it shows `[YOUR-PASSWORD]`.
+     (the deploy's `drizzle-kit migrate` runs DDL, which needs a session/direct connection, not the
+     transaction pooler on `6543`). Substitute your DB password where it shows `[YOUR-PASSWORD]`.
    - **`SUPABASE_URL`** — exactly `https://jxdhdyxivyrmkeuxisre.supabase.co` (Project Settings → API
      → Project URL). Used server-side to validate bearer tokens.
    - **`SUPABASE_SERVICE_ROLE_KEY`** — Project Settings → API → **service_role** secret. Starts
@@ -145,17 +145,34 @@ must be verified or invites fail / land in spam.
 CI (`.github/workflows/fly-deploy.yml`) deploys to Fly **only on push to `main`**. The Workspaces
 feature currently lives on `origin/claude` (plus the deployment changes from this work).
 
-1. Open a PR from `claude` → `main`, review, and merge.
+**Before merging — confirm the prod DB has migration history** (one-time check). The deploy's
+`release_command` runs `drizzle-kit migrate`, which applies only *unapplied* committed migrations
+(tracked in `drizzle.__drizzle_migrations`). In the Supabase dashboard → **SQL Editor**, run:
+
+```sql
+select * from drizzle.__drizzle_migrations order by created_at;
+```
+
+- **Rows exist (0000–0002 applied):** good — the deploy will apply only the new `0003` migration as
+  an additive delta. Proceed.
+- **Table/schema missing, but `public` tables exist:** the DB predates migrations (`push`-managed).
+  Do the **one-time baseline reset** before deploying (see `CLAUDE.md` → Deployment Architecture):
+  Supabase SQL Editor → `DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;`
+  then deploy — `migrate` rebuilds the schema cleanly from `0000`.
+- **Everything empty (brand-new DB):** also fine — `migrate` applies `0000`→`0003` in order.
+
+Then:
+1. Open a PR from `claude` → `main`, review, and merge (it fast-forwards — no conflicts).
 2. The merge triggers GitHub Actions: typecheck → pm-app tests → drift/schema checks →
-   `flyctl deploy`. The deploy's `release_command` runs `drizzle-kit push` against the production
-   `DATABASE_URL` (creates/updates the schema on first deploy).
+   `flyctl deploy`. The deploy's `release_command` runs `drizzle-kit migrate` against the production
+   `DATABASE_URL`, applying any unapplied committed migrations.
 3. Watch it:
    ```bash
    fly logs -a fulfill-paperalien
    fly status -a fulfill-paperalien
    ```
    A failing CI check stops the deploy (nothing ships). A failing `release_command` (bad
-   `DATABASE_URL`, no DB permission) shows in the release logs — fix the secret and redeploy.
+   `DATABASE_URL`, no DB permission, or a migration error) shows in the release logs — fix and redeploy.
 
 ## Step 6 — Link the app from the homepage (GoDaddy Website Builder)
 
