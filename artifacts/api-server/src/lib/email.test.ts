@@ -34,6 +34,17 @@ describe("sendInvitationEmail", () => {
     expect(mockSend).toHaveBeenCalledOnce();
   });
 
+  it("sends from the no-reply label, Reply-To the inviter, with a plaintext part", async () => {
+    mockSend.mockResolvedValueOnce({ data: { id: "abc" }, error: null });
+    await sendInvitationEmail(OPTS);
+
+    const payload = mockSend.mock.calls[0][0];
+    expect(payload.from).toBe("Fulfill <noreply@paperalien.com>");
+    expect(payload.replyTo).toBe(OPTS.inviterEmail); // human inviter, not the sender
+    expect(payload.text).toEqual(expect.stringContaining(OPTS.inviteUrl));
+    expect(payload.text.length).toBeGreaterThan(0);
+  });
+
   it("throws when Resend returns an error instead of swallowing it (R3)", async () => {
     mockSend.mockResolvedValueOnce({ data: null, error: { message: "Invalid API key" } });
     await expect(sendInvitationEmail(OPTS)).rejects.toThrow(/Invalid API key/);

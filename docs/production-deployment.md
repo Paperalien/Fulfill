@@ -63,35 +63,42 @@ Runtime config the server needs. `APP_URL` is already set non-secret in `fly.tom
 
 This is the **only** registrar change. The apex (homepage) records are left alone.
 
-1. Tell Fly about the hostname so it provisions a Let's Encrypt cert and prints the exact DNS
+1. Tell Fly about the hostname so it creates a Let's Encrypt cert and prints the exact DNS
    records to add:
    ```bash
    fly certs add fulfill.paperalien.com -a fulfill-paperalien
    ```
-   Fly will show a target — for a subdomain this is a **CNAME** to `fulfill-paperalien.fly.dev`
-   (and possibly an `_acme-challenge` validation record).
-2. In **GoDaddy → Domain Portfolio → paperalien.com → DNS → Manage DNS → Add New Record**:
-   - **Type:** `CNAME`
-   - **Name:** `fulfill`
-   - **Value:** `fulfill-paperalien.fly.dev` (use whatever target `fly certs add` printed)
-   - **TTL:** default (1 hour)
-   - Add the `_acme-challenge` record too if Fly asked for one (Type/Name/Value exactly as shown).
-   This coexists with the apex `A` records GoDaddy's Website Builder uses — no conflict, the
-   homepage keeps working.
+   Fly prints a **"Recommended DNS setup"** — the record(s) to point the hostname at. In practice
+   this is a pair of **A + AAAA** records with the app's IPs, e.g.:
+   ```
+   A     fulfill.paperalien.com → 66.241.125.206
+   AAAA  fulfill.paperalien.com → 2a09:8280:1::105:eb2f:0
+   ```
+   (Fly may instead suggest a CNAME to `fulfill-paperalien.fly.dev` — either form works for a
+   subdomain. **Add whatever Fly actually printed**; don't assume.)
+2. In **GoDaddy → Domain Portfolio → paperalien.com → DNS → Manage DNS → Add New Record**, add a
+   record for **each** line Fly printed. For the A + AAAA case, that's two records:
+   | Type | Name | Value | TTL |
+   |------|------|-------|-----|
+   | `A` | `fulfill` | the IPv4 Fly printed (e.g. `66.241.125.206`) | default (1 hour) |
+   | `AAAA` | `fulfill` | the IPv6 Fly printed (e.g. `2a09:8280:1::105:eb2f:0`) | default (1 hour) |
+
+   The **Name** is just `fulfill` (GoDaddy appends `.paperalien.com`). The **Value** is the
+   "target" — the IP (for A/AAAA) or hostname (for a CNAME). These coexist with the apex records
+   GoDaddy's Website Builder uses — no conflict, the homepage keeps working.
 3. Wait for DNS to propagate, then confirm the cert is issued:
    ```bash
-   dig +short fulfill.paperalien.com          # should resolve (CNAME → fly.dev → Fly IP)
+   dig +short fulfill.paperalien.com          # should return the A value (e.g. 66.241.125.206)
    fly certs show fulfill.paperalien.com -a fulfill-paperalien
    ```
    Success looks like `Status = Ready` / certificate issued. If it stays pending for more than a
-   few minutes, the CNAME (or the ACME record) hasn't propagated or is mistyped — re-check the
-   GoDaddy record values.
+   few minutes, the records haven't propagated yet or a value is mistyped — re-check the GoDaddy
+   record values.
 
 > **Cert story (why this is simple):** certs are per-hostname and per-platform. GoDaddy
 > auto-manages the cert for `paperalien.com` / `www`; Fly auto-issues *and auto-renews* the cert
-> for `fulfill.paperalien.com`. They never interact, and nothing is shared. (No Cloudflare and no
-> dedicated IP are needed — those are only required to put a bare *apex* domain on Fly, which a
-> subdomain CNAME sidesteps entirely.)
+> for `fulfill.paperalien.com`. They never interact, and nothing is shared. (No Cloudflare needed —
+> Fly serves the cert directly for the subdomain, routing by TLS SNI.)
 
 ## Step 3 — Supabase Auth URL configuration
 
@@ -110,16 +117,23 @@ target must be allow-listed.
 Workspace **invite** emails send via Resend (separate from Supabase's login emails). The domain
 must be verified or invites fail / land in spam.
 
-1. Resend dashboard → **Domains → Add Domain → `paperalien.com`**. Resend lists the DNS records to
-   add — typically a DKIM **CNAME** (e.g. `resend._domainkey`), an SPF **TXT**, and an optional
-   DMARC **TXT**.
-2. Add each record in **GoDaddy → Manage DNS**, copying Type / Name / Value exactly as Resend
-   shows.
-   - ⚠️ **SPF caution:** a domain may have only **one** SPF TXT record. If GoDaddy already
-     publishes SPF for your `accounts@paperalien.com` mailbox (Microsoft 365 / GoDaddy email),
-     **merge** Resend's `include:` into the existing record (e.g.
-     `v=spf1 include:secureserver.net include:_spf.resend.com ~all`) — do **not** add a second SPF
-     record.
+1. Resend dashboard → **Domains → Add Domain → `paperalien.com`**. Resend lists the records to add.
+   Resend isolates its sending under a **`send.` subdomain** plus a uniquely-named DKIM record, so
+   these do **not** collide with Microsoft 365 / root-domain mail:
+   - **MX** on `send.paperalien.com` → `feedback-smtp.<region>.amazonses.com` (bounce return-path)
+   - **TXT (SPF)** on `send.paperalien.com` → `v=spf1 include:amazonses.com ~all`
+   - **TXT (DKIM)** on `resend._domainkey.paperalien.com` → the public key Resend shows
+   - **TXT (DMARC)** on `_dmarc.paperalien.com` — *optional*
+2. Add each record in **GoDaddy → Manage DNS**, copying Type / Name / Value exactly as Resend shows.
+   **Email-safety rules (this domain carries live M365 mail):**
+   - ✅ **Only ADD** Resend's records. **Never edit or delete** existing records — the root MX, the
+     root SPF TXT, the `selector1`/`selector2._domainkey` CNAMEs, and the M365 CNAMEs
+     (`autodiscover`, `email`, `ftp`, `lyncdiscover`, `msoid`) all keep M365 working and must stay.
+   - ✅ Resend's **SPF lives on `send.paperalien.com`, not the root** — so there is **no** root-SPF
+     merge to do, and the M365 root SPF is untouched.
+   - ⚠️ **DMARC is the only singleton:** a domain may have only one `_dmarc` TXT. If a `_dmarc`
+     record already exists (common with M365), **keep it — do not add Resend's**. Only add a
+     `_dmarc` record if none exists. (DMARC isn't required for verification; SPF + DKIM are.)
 3. Back in Resend, click **Verify**. It flips to *Verified* once the records resolve (can take a
    few minutes to an hour).
 4. The app sends from `Fulfill <accounts@paperalien.com>` (`artifacts/api-server/src/lib/email.ts`).
