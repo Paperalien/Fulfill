@@ -184,4 +184,56 @@ describe('SavePrompt', () => {
     expect(screen.getAllByText(/save across devices/i).length).toBeGreaterThan(0);
     rerender(<SavePrompt open={true} onOpenChange={onOpenChange} />);
   });
+
+  it('send failure: shows an error and stays on the email panel (does not show sent)', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    mockSignInWithEmail.mockRejectedValueOnce(new Error('rate limited'));
+    renderPrompt();
+
+    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
+    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    await waitFor(() =>
+      expect(screen.getByText(/couldn.t send the magic link/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByText(/check your inbox/i)).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
+  });
+
+  it('sent panel: Resend starts disabled with a countdown', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    renderPrompt();
+
+    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
+    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
+    // Cooldown is active right after sending → button disabled, showing a countdown.
+    expect(screen.getByRole('button', { name: /resend in \d+s/i })).toBeDisabled();
+  });
+
+  it('sent panel: once cooldown elapses, Resend re-sends the magic link', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    // cooldown 0 → Resend immediately enabled (no fake timers needed).
+    render(<SavePrompt open={true} onOpenChange={vi.fn()} resendCooldownSeconds={0} />);
+
+    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
+    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
+    const resend = screen.getByRole('button', { name: /^resend email$/i });
+    expect(resend).toBeEnabled();
+
+    mockSignInWithEmail.mockClear();
+    await user.click(resend);
+
+    await waitFor(() => expect(mockSignInWithEmail).toHaveBeenCalledWith('user@test.com'));
+    expect(mockToast).toHaveBeenCalledWith('Magic link resent');
+  });
 });

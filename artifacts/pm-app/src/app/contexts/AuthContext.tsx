@@ -120,10 +120,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signInWithEmail(email: string) {
-    await supabase.auth.signInWithOtp({
+    // Surface provider failures (e.g. rate limits). signInWithOtp reports errors
+    // via the returned { error } rather than throwing, so callers that don't
+    // check it would falsely treat a failed send as success.
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.origin },
     });
+    if (error) throw error;
   }
 
   const isAuthenticated = !!session && !!activeWorkspaceId;

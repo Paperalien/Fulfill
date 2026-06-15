@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -13,20 +13,48 @@ import { markFirstRunSeen, hasLocalData } from '../lib/localStore';
 
 type Panel = 'choice' | 'email' | 'merge-confirm' | 'sent';
 
+// Supabase enforces a minimum interval between magic-link requests per email
+// (default 60s); match it so the resend button can't fire a guaranteed failure.
+const RESEND_COOLDOWN_SECONDS = 60;
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Seconds the Resend button stays disabled after a send. Defaults to
+   * RESEND_COOLDOWN_SECONDS (matches Supabase's min OTP interval); overridable
+   * so tests can exercise the enabled state without waiting.
+   */
+  resendCooldownSeconds?: number;
 }
 
-export function SavePrompt({ open, onOpenChange }: Props) {
+export function SavePrompt({
+  open,
+  onOpenChange,
+  resendCooldownSeconds = RESEND_COOLDOWN_SECONDS,
+}: Props) {
   const { signInWithEmail } = useAuth();
   const [panel, setPanel] = useState<Panel>('choice');
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sentTo, setSentTo] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // Tick the resend cooldown down to zero (chained 1s timeouts).
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown(cooldown - 1), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
 
   function handleOpenChange(next: boolean) {
-    if (!next) setPanel('choice');
+    if (!next) {
+      setPanel('choice');
+      setError(null);
+      setCooldown(0);
+    }
     onOpenChange(next);
   }
 
@@ -36,32 +64,46 @@ export function SavePrompt({ open, onOpenChange }: Props) {
     toast('You can save anytime via the icon ↖', { duration: 5000 });
   }
 
+  // Returns true if the email already has server-side data. Any failure (network,
+  // non-200) is swallowed so we fall through and send the magic link anyway.
+  async function emailHasServerData(addr: string): Promise<boolean> {
+    try {
+      const baseUrl = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').replace(/\/+$/, '');
+      const resp = await fetch(`${baseUrl}/api/users/check-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: addr }),
+      });
+      if (!resp.ok) return false;
+      const data = await resp.json() as { hasData: boolean };
+      return data.hasData;
+    } catch {
+      return false;
+    }
+  }
+
+  async function sendMagicLink(addr: string) {
+    await signInWithEmail(addr); // throws on provider error → caller shows it
+    setSentTo(addr);
+    setPanel('sent');
+    setError(null);
+    setCooldown(resendCooldownSeconds);
+  }
+
   async function handleEmailSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
+    const addr = email.trim();
+    if (!addr) return;
     setSubmitting(true);
+    setError(null);
     try {
-      // If there's local data, check whether this email already has server data.
-      // If so, show the merge-confirm panel before sending the OTP.
-      if (hasLocalData()) {
-        const baseUrl = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').replace(/\/+$/, '');
-        const resp = await fetch(`${baseUrl}/api/users/check-email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: email.trim() }),
-        });
-        if (resp.ok) {
-          const data = await resp.json() as { hasData: boolean };
-          if (data.hasData) {
-            setPanel('merge-confirm');
-            return;
-          }
-        }
-        // If the check fails (network error etc.), fall through and send OTP anyway
+      if (hasLocalData() && (await emailHasServerData(addr))) {
+        setPanel('merge-confirm');
+        return;
       }
-      await signInWithEmail(email.trim());
-      setSentTo(email.trim());
-      setPanel('sent');
+      await sendMagicLink(addr);
+    } catch {
+      setError("Couldn't send the magic link. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -69,12 +111,27 @@ export function SavePrompt({ open, onOpenChange }: Props) {
 
   async function handleMerge() {
     setSubmitting(true);
+    setError(null);
     try {
-      await signInWithEmail(email.trim());
-      setSentTo(email.trim());
-      setPanel('sent');
+      await sendMagicLink(email.trim());
+    } catch {
+      setError("Couldn't send the magic link. Please try again.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleResend() {
+    if (resending || cooldown > 0) return;
+    setResending(true);
+    try {
+      await signInWithEmail(sentTo);
+      setCooldown(resendCooldownSeconds);
+      toast('Magic link resent');
+    } catch {
+      toast("Couldn't resend — please try again in a moment.");
+    } finally {
+      setResending(false);
     }
   }
 
@@ -132,11 +189,12 @@ export function SavePrompt({ open, onOpenChange }: Props) {
               autoFocus
               required
             />
+            {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex gap-2">
               <Button size="sm" type="submit" disabled={submitting} className="flex-1">
                 {submitting ? 'Checking…' : 'Continue'}
               </Button>
-              <Button size="sm" variant="ghost" type="button" onClick={() => setPanel('choice')}>
+              <Button size="sm" variant="ghost" type="button" onClick={() => { setError(null); setPanel('choice'); }}>
                 Back
               </Button>
             </div>
@@ -151,11 +209,12 @@ export function SavePrompt({ open, onOpenChange }: Props) {
                 This email has existing tasks on the server. Your local tasks will be merged in — nothing will be deleted.
               </p>
             </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex flex-col gap-2">
               <Button size="sm" onClick={handleMerge} disabled={submitting}>
                 {submitting ? 'Sending…' : 'Merge and continue'}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setPanel('email')}>
+              <Button size="sm" variant="ghost" onClick={() => { setError(null); setPanel('email'); }}>
                 Cancel
               </Button>
             </div>
@@ -169,9 +228,23 @@ export function SavePrompt({ open, onOpenChange }: Props) {
               We sent a magic link to <span className="font-medium text-foreground">{sentTo}</span>.
               Click it to sync your data.
             </p>
-            <Button size="sm" variant="ghost" className="w-full mt-1" onClick={() => onOpenChange(false)}>
-              Done
-            </Button>
+            <div className="flex gap-2 mt-1">
+              <Button
+                size="sm"
+                className="flex-1"
+                onClick={handleResend}
+                disabled={resending || cooldown > 0}
+              >
+                {resending
+                  ? 'Sending…'
+                  : cooldown > 0
+                    ? `Resend in ${cooldown}s`
+                    : 'Resend email'}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
+                Done
+              </Button>
+            </div>
           </div>
         )}
       </PopoverContent>
