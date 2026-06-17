@@ -6,23 +6,31 @@ import userEvent from '@testing-library/user-event';
 
 const {
   mockSignInWithEmail,
+  mockVerifyOtp,
   mockHasLocalData,
   mockMarkFirstRunSeen,
+  mockWriteLastEmail,
+  mockClearLastEmail,
   mockToast,
 } = vi.hoisted(() => ({
   mockSignInWithEmail: vi.fn(),
+  mockVerifyOtp: vi.fn(),
   mockHasLocalData: vi.fn(),
   mockMarkFirstRunSeen: vi.fn(),
+  mockWriteLastEmail: vi.fn(),
+  mockClearLastEmail: vi.fn(),
   mockToast: vi.fn(),
 }));
 
 vi.mock('../contexts/AuthContext', () => ({
-  useAuth: () => ({ signInWithEmail: mockSignInWithEmail }),
+  useAuth: () => ({ signInWithEmail: mockSignInWithEmail, verifyOtp: mockVerifyOtp }),
 }));
 
 vi.mock('../lib/localStore', () => ({
   hasLocalData: mockHasLocalData,
   markFirstRunSeen: mockMarkFirstRunSeen,
+  writeLastEmail: mockWriteLastEmail,
+  clearLastEmail: mockClearLastEmail,
 }));
 
 vi.mock('sonner', () => ({ toast: mockToast }));
@@ -37,11 +45,20 @@ function renderPrompt(onOpenChange = vi.fn()) {
   return { onOpenChange };
 }
 
+// Drive a fresh prompt all the way to the code panel (no local data path).
+async function reachCodePanel(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
+  await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
+  await user.click(screen.getByRole('button', { name: /continue/i }));
+  await waitFor(() => expect(screen.getByText(/check your email/i)).toBeInTheDocument());
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
   mockHasLocalData.mockReturnValue(false);
   mockSignInWithEmail.mockResolvedValue(undefined);
+  mockVerifyOtp.mockResolvedValue(undefined);
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -72,20 +89,20 @@ describe('SavePrompt', () => {
     expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
   });
 
-  it('email submit with no local data calls signInWithEmail and shows sent panel', async () => {
+  it('email submit with no local data sends a code and shows the code panel', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(false);
     renderPrompt();
 
-    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
-    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
-    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await reachCodePanel(user);
 
-    await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
     expect(mockSignInWithEmail).toHaveBeenCalledWith('user@test.com');
+    // Email is remembered once a code is sent.
+    expect(mockWriteLastEmail).toHaveBeenCalledWith('user@test.com');
+    expect(screen.getByPlaceholderText(/123456/)).toBeInTheDocument();
   });
 
-  it('email submit, local data, server hasData:false → calls signInWithEmail, shows sent', async () => {
+  it('email submit, local data, server hasData:false → sends code, shows code panel', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(true);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -94,15 +111,12 @@ describe('SavePrompt', () => {
     }));
     renderPrompt();
 
-    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
-    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
-    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await reachCodePanel(user);
 
-    await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
     expect(mockSignInWithEmail).toHaveBeenCalledWith('user@test.com');
   });
 
-  it('email submit, local data, server hasData:true → shows merge-confirm, does NOT call signInWithEmail', async () => {
+  it('email submit, local data, server hasData:true → shows merge-confirm, does NOT send code', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(true);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -119,7 +133,7 @@ describe('SavePrompt', () => {
     expect(mockSignInWithEmail).not.toHaveBeenCalled();
   });
 
-  it('Cancel on merge-confirm returns to email panel with email preserved and does NOT call signInWithEmail', async () => {
+  it('Cancel on merge-confirm returns to email panel with email preserved and does NOT send code', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(true);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -135,16 +149,13 @@ describe('SavePrompt', () => {
 
     await user.click(screen.getByRole('button', { name: /cancel/i }));
 
-    // Should return to email panel — email input visible with value preserved
     expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
     expect((screen.getByPlaceholderText(/you@example\.com/i) as HTMLInputElement).value).toBe('user@test.com');
-    // Popover should remain open
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    // OTP must NOT have been sent
     expect(mockSignInWithEmail).not.toHaveBeenCalled();
   });
 
-  it('Merge on merge-confirm calls signInWithEmail and shows sent panel', async () => {
+  it('Merge on merge-confirm sends a code and shows the code panel', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(true);
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -160,32 +171,80 @@ describe('SavePrompt', () => {
 
     await user.click(screen.getByRole('button', { name: /merge and continue/i }));
 
-    await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/check your email/i)).toBeInTheDocument());
     expect(mockSignInWithEmail).toHaveBeenCalledWith('user@test.com');
   });
 
-  it('closing resets to choice panel on re-open', async () => {
+  // ── Code panel (OTP verification) ──────────────────────────────────────────
+
+  it('code panel: a valid code calls verifyOtp and closes the popover', async () => {
     const user = userEvent.setup();
-    const onOpenChange = vi.fn();
-    render(<SavePrompt open={true} onOpenChange={onOpenChange} />);
+    const { onOpenChange } = renderPrompt();
 
-    // Navigate away from choice panel
-    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
-    expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
+    await reachCodePanel(user);
+    await user.type(screen.getByPlaceholderText(/123456/), '123456');
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
-    // Close via Escape (triggers Radix → handleOpenChange(false) → setPanel('choice'))
-    await user.keyboard('{Escape}');
+    await waitFor(() => expect(mockVerifyOtp).toHaveBeenCalledWith('user@test.com', '123456'));
     expect(onOpenChange).toHaveBeenCalledWith(false);
-
-    // Re-open: panel should have been reset to 'choice' by handleOpenChange
-    // Simulate by checking the state was reset (onOpenChange called = panel reset logic ran)
-    // Confirm by re-rendering open
-    const { rerender } = render(<SavePrompt open={true} onOpenChange={onOpenChange} />);
-    expect(screen.getAllByText(/save across devices/i).length).toBeGreaterThan(0);
-    rerender(<SavePrompt open={true} onOpenChange={onOpenChange} />);
   });
 
-  it('send failure: shows an error and stays on the email panel (does not show sent)', async () => {
+  it('code panel: an invalid code shows an inline error and stays on the code panel', async () => {
+    const user = userEvent.setup();
+    mockVerifyOtp.mockRejectedValueOnce(new Error('invalid'));
+    renderPrompt();
+
+    await reachCodePanel(user);
+    await user.type(screen.getByPlaceholderText(/123456/), '000000');
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+    await waitFor(() => expect(screen.getByText(/didn.t work/i)).toBeInTheDocument());
+    expect(screen.getByPlaceholderText(/123456/)).toBeInTheDocument();
+  });
+
+  it('code panel: input strips non-digits and caps at 6 characters', async () => {
+    const user = userEvent.setup();
+    renderPrompt();
+
+    await reachCodePanel(user);
+    const input = screen.getByPlaceholderText(/123456/) as HTMLInputElement;
+    await user.type(input, 'a1b2c3d4e5f6g7');
+
+    expect(input.value).toBe('123456');
+  });
+
+  // ── Returning-user "Welcome back" framing ──────────────────────────────────
+
+  it('opens on the Welcome back panel when a remembered email is provided', () => {
+    render(<SavePrompt open={true} onOpenChange={vi.fn()} rememberedEmail="returning@test.com" />);
+    expect(screen.getByText(/welcome back/i)).toBeInTheDocument();
+    expect(screen.getByText('returning@test.com')).toBeInTheDocument();
+  });
+
+  it('"Email me a code" on the Welcome back panel sends a code to the remembered email', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    render(<SavePrompt open={true} onOpenChange={vi.fn()} rememberedEmail="returning@test.com" />);
+
+    await user.click(screen.getByRole('button', { name: /email me a code/i }));
+
+    await waitFor(() => expect(screen.getByText(/check your email/i)).toBeInTheDocument());
+    expect(mockSignInWithEmail).toHaveBeenCalledWith('returning@test.com');
+  });
+
+  it('"Use a different email" clears the remembered email and shows the email panel', async () => {
+    const user = userEvent.setup();
+    render(<SavePrompt open={true} onOpenChange={vi.fn()} rememberedEmail="returning@test.com" />);
+
+    await user.click(screen.getByRole('button', { name: /use a different email/i }));
+
+    expect(mockClearLastEmail).toHaveBeenCalledOnce();
+    expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
+  });
+
+  // ── Send failure + resend ──────────────────────────────────────────────────
+
+  it('send failure: shows an error and stays on the email panel (no code panel)', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(false);
     mockSignInWithEmail.mockRejectedValueOnce(new Error('rate limited'));
@@ -196,44 +255,38 @@ describe('SavePrompt', () => {
     await user.click(screen.getByRole('button', { name: /continue/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/couldn.t send the magic link/i)).toBeInTheDocument()
+      expect(screen.getByText(/couldn.t send the code/i)).toBeInTheDocument()
     );
-    expect(screen.queryByText(/check your inbox/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/check your email/i)).not.toBeInTheDocument();
     expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
   });
 
-  it('sent panel: Resend starts disabled with a countdown', async () => {
+  it('code panel: Resend starts disabled with a countdown', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(false);
     renderPrompt();
 
-    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
-    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
-    await user.click(screen.getByRole('button', { name: /continue/i }));
-
-    await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
-    // Cooldown is active right after sending → button disabled, showing a countdown.
+    await reachCodePanel(user);
     expect(screen.getByRole('button', { name: /resend in \d+s/i })).toBeDisabled();
   });
 
-  it('sent panel: once cooldown elapses, Resend re-sends the magic link', async () => {
+  it('code panel: once cooldown elapses, Resend re-sends the code', async () => {
     const user = userEvent.setup();
     mockHasLocalData.mockReturnValue(false);
-    // cooldown 0 → Resend immediately enabled (no fake timers needed).
     render(<SavePrompt open={true} onOpenChange={vi.fn()} resendCooldownSeconds={0} />);
 
     await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
     await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
     await user.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => expect(screen.getByText(/check your email/i)).toBeInTheDocument());
 
-    await waitFor(() => expect(screen.getByText(/check your inbox/i)).toBeInTheDocument());
-    const resend = screen.getByRole('button', { name: /^resend email$/i });
+    const resend = screen.getByRole('button', { name: /^resend code$/i });
     expect(resend).toBeEnabled();
 
     mockSignInWithEmail.mockClear();
     await user.click(resend);
 
     await waitFor(() => expect(mockSignInWithEmail).toHaveBeenCalledWith('user@test.com'));
-    expect(mockToast).toHaveBeenCalledWith('Magic link resent');
+    expect(mockToast).toHaveBeenCalledWith('Code resent');
   });
 });

@@ -22,6 +22,7 @@ interface AuthContextValue {
   refreshWorkspaces: () => Promise<void>;
   signOut: () => Promise<void>;
   signInWithEmail: (email: string) => Promise<void>;
+  verifyOtp: (email: string, token: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -130,6 +131,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }
 
+  // Verify the 6-digit code the user typed back into this same tab. Completing
+  // auth here (rather than via an emailed link opening some other browser) is
+  // what guarantees the session lands where the user's local data lives, so the
+  // localStorage→server migration runs against the right data. On success the
+  // onAuthStateChange subscription above fires and drives workspace init.
+  async function verifyOtp(email: string, token: string) {
+    const { error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'email',
+    });
+    if (error) throw error;
+  }
+
   const isAuthenticated = !!session && !!activeWorkspaceId;
 
   return (
@@ -145,6 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         refreshWorkspaces,
         signOut,
         signInWithEmail,
+        verifyOtp,
       }}
     >
       {children}
