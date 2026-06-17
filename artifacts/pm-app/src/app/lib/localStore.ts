@@ -6,6 +6,7 @@ const KEYS = {
   sprints: 'fulfill:sprints',
   columns: 'fulfill:columns',
   firstRunSeen: 'fulfill:first-run-seen',
+  lastEmail: 'fulfill:last-email',
 } as const;
 
 function safeRead<T>(key: string, fallback: T): T {
@@ -101,6 +102,36 @@ export function hasSeenFirstRun(): boolean {
 export function markFirstRunSeen(): void {
   try {
     localStorage.setItem(KEYS.firstRunSeen, 'true');
+  } catch {
+    // Ignore
+  }
+}
+
+// ── Remembered email ─────────────────────────────────────────────────────────
+// The last email a sign-in code was sent to, used to power the returning-user
+// "Welcome back" startup nudge. Deliberately NOT cleared by clearLocalData() —
+// it must survive sign-out so a returning user gets the one-tap prompt. Only the
+// explicit "use a different email" action clears it.
+
+export function readLastEmail(): string | null {
+  try {
+    return localStorage.getItem(KEYS.lastEmail);
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastEmail(email: string): void {
+  try {
+    localStorage.setItem(KEYS.lastEmail, email);
+  } catch {
+    // Ignore
+  }
+}
+
+export function clearLastEmail(): void {
+  try {
+    localStorage.removeItem(KEYS.lastEmail);
   } catch {
     // Ignore
   }

@@ -9,17 +9,28 @@ import {
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useAuth } from '../contexts/AuthContext';
-import { markFirstRunSeen, hasLocalData } from '../lib/localStore';
+import {
+  markFirstRunSeen,
+  hasLocalData,
+  writeLastEmail,
+  clearLastEmail,
+} from '../lib/localStore';
 
-type Panel = 'choice' | 'email' | 'merge-confirm' | 'sent';
+type Panel = 'choice' | 'welcome' | 'email' | 'merge-confirm' | 'code';
 
-// Supabase enforces a minimum interval between magic-link requests per email
+// Supabase enforces a minimum interval between code requests per email
 // (default 60s); match it so the resend button can't fire a guaranteed failure.
 const RESEND_COOLDOWN_SECONDS = 60;
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Last email a code was sent to on this device, if any. When present the
+   * prompt opens on a "Welcome back" panel pre-filled with this address so a
+   * returning user can sign in with one tap.
+   */
+  rememberedEmail?: string | null;
   /**
    * Seconds the Resend button stays disabled after a send. Defaults to
    * RESEND_COOLDOWN_SECONDS (matches Supabase's min OTP interval); overridable
@@ -31,14 +42,19 @@ interface Props {
 export function SavePrompt({
   open,
   onOpenChange,
+  rememberedEmail = null,
   resendCooldownSeconds = RESEND_COOLDOWN_SECONDS,
 }: Props) {
-  const { signInWithEmail } = useAuth();
-  const [panel, setPanel] = useState<Panel>('choice');
-  const [email, setEmail] = useState('');
+  const { signInWithEmail, verifyOtp } = useAuth();
+  const initialPanel: Panel = rememberedEmail ? 'welcome' : 'choice';
+  const [panel, setPanel] = useState<Panel>(initialPanel);
+  const [email, setEmail] = useState(rememberedEmail ?? '');
+  const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [sentTo, setSentTo] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
@@ -49,11 +65,17 @@ export function SavePrompt({
     return () => clearTimeout(id);
   }, [cooldown]);
 
+  function resetToStart() {
+    setPanel(rememberedEmail ? 'welcome' : 'choice');
+    setError(null);
+    setCodeError(null);
+    setCode('');
+    setCooldown(0);
+  }
+
   function handleOpenChange(next: boolean) {
     if (!next) {
-      setPanel('choice');
-      setError(null);
-      setCooldown(0);
+      resetToStart();
     }
     onOpenChange(next);
   }
@@ -65,7 +87,7 @@ export function SavePrompt({
   }
 
   // Returns true if the email already has server-side data. Any failure (network,
-  // non-200) is swallowed so we fall through and send the magic link anyway.
+  // non-200) is swallowed so we fall through and send the code anyway.
   async function emailHasServerData(addr: string): Promise<boolean> {
     try {
       const baseUrl = ((import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '').replace(/\/+$/, '');
@@ -82,18 +104,21 @@ export function SavePrompt({
     }
   }
 
-  async function sendMagicLink(addr: string) {
+  async function sendCode(addr: string) {
     await signInWithEmail(addr); // throws on provider error → caller shows it
+    writeLastEmail(addr);
     setSentTo(addr);
-    setPanel('sent');
+    setCode('');
+    setCodeError(null);
+    setPanel('code');
     setError(null);
     setCooldown(resendCooldownSeconds);
   }
 
-  async function handleEmailSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const addr = email.trim();
-    if (!addr) return;
+  // Shared submit path used by both the email form and the returning-user
+  // "Email me a code" button: gate on the merge confirmation when local data
+  // would be uploaded into an existing account, otherwise send the code.
+  async function submitEmail(addr: string) {
     setSubmitting(true);
     setError(null);
     try {
@@ -101,24 +126,56 @@ export function SavePrompt({
         setPanel('merge-confirm');
         return;
       }
-      await sendMagicLink(addr);
+      await sendCode(addr);
     } catch {
-      setError("Couldn't send the magic link. Please try again.");
+      setError("Couldn't send the code. Please try again.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleEmailSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const addr = email.trim();
+    if (!addr) return;
+    await submitEmail(addr);
   }
 
   async function handleMerge() {
     setSubmitting(true);
     setError(null);
     try {
-      await sendMagicLink(email.trim());
+      await sendCode(email.trim());
     } catch {
-      setError("Couldn't send the magic link. Please try again.");
+      setError("Couldn't send the code. Please try again.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault();
+    const token = code.trim();
+    if (!token) return;
+    setVerifying(true);
+    setCodeError(null);
+    try {
+      await verifyOtp(sentTo, token);
+      // Auth state flips via onAuthStateChange; close the popover. Migration
+      // (if any local data) is driven by useMigration in the same tab.
+      onOpenChange(false);
+    } catch {
+      setCodeError('That code didn’t work. Check it and try again.');
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  function handleUseDifferentEmail() {
+    clearLastEmail();
+    setEmail('');
+    setError(null);
+    setPanel('email');
   }
 
   async function handleResend() {
@@ -127,7 +184,7 @@ export function SavePrompt({
     try {
       await signInWithEmail(sentTo);
       setCooldown(resendCooldownSeconds);
-      toast('Magic link resent');
+      toast('Code resent');
     } catch {
       toast("Couldn't resend — please try again in a moment.");
     } finally {
@@ -140,10 +197,10 @@ export function SavePrompt({
       <PopoverTrigger asChild>
         <button
           className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          title="Save your data"
+          title={rememberedEmail ? 'Sign in' : 'Save your data'}
         >
           <Mail size={14} />
-          <span>Save your data</span>
+          <span>{rememberedEmail ? 'Sign in' : 'Save your data'}</span>
         </button>
       </PopoverTrigger>
 
@@ -154,6 +211,30 @@ export function SavePrompt({
         collisionPadding={12}
         className="w-80 max-w-[calc(100vw-1.5rem)]"
       >
+        {panel === 'welcome' && (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Welcome back</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Sign in as <span className="font-medium text-foreground">{rememberedEmail}</span> to
+                sync your tasks. We'll email you a 6-digit code.
+              </p>
+            </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <div className="flex flex-col gap-2">
+              <Button size="sm" onClick={() => submitEmail((rememberedEmail ?? '').trim())} disabled={submitting}>
+                {submitting ? 'Sending…' : 'Email me a code'}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleUseDifferentEmail}>
+                Use a different email
+              </Button>
+              <Button size="sm" variant="ghost" onClick={handleNotNow}>
+                Not now
+              </Button>
+            </div>
+          </div>
+        )}
+
         {panel === 'choice' && (
           <div className="space-y-3">
             <div>
@@ -178,7 +259,7 @@ export function SavePrompt({
             <div>
               <p className="text-sm font-medium text-foreground">Enter your email</p>
               <p className="text-xs text-muted-foreground mt-1">
-                We'll send you a magic link — no password needed.
+                We'll email you a 6-digit code — no password needed.
               </p>
             </div>
             <Input
@@ -194,7 +275,7 @@ export function SavePrompt({
               <Button size="sm" type="submit" disabled={submitting} className="flex-1">
                 {submitting ? 'Checking…' : 'Continue'}
               </Button>
-              <Button size="sm" variant="ghost" type="button" onClick={() => { setError(null); setPanel('choice'); }}>
+              <Button size="sm" variant="ghost" type="button" onClick={() => { setError(null); resetToStart(); }}>
                 Back
               </Button>
             </div>
@@ -221,17 +302,33 @@ export function SavePrompt({
           </div>
         )}
 
-        {panel === 'sent' && (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-foreground">Check your inbox!</p>
-            <p className="text-xs text-muted-foreground">
-              We sent a magic link to <span className="font-medium text-foreground">{sentTo}</span>.
-              Click it to sync your data.
-            </p>
-            <div className="flex gap-2 mt-1">
-              <Button
-                size="sm"
-                className="flex-1"
+        {panel === 'code' && (
+          <form onSubmit={handleVerify} className="space-y-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Check your email</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Enter the 6-digit code we sent to{' '}
+                <span className="font-medium text-foreground">{sentTo}</span>.
+              </p>
+            </div>
+            <Input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              autoFocus
+              required
+            />
+            {codeError && <p className="text-xs text-destructive">{codeError}</p>}
+            <Button size="sm" type="submit" disabled={verifying} className="w-full">
+              {verifying ? 'Verifying…' : 'Sign in'}
+            </Button>
+            <div className="flex items-center justify-between pt-0.5">
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleResend}
                 disabled={resending || cooldown > 0}
               >
@@ -239,13 +336,17 @@ export function SavePrompt({
                   ? 'Sending…'
                   : cooldown > 0
                     ? `Resend in ${cooldown}s`
-                    : 'Resend email'}
-              </Button>
-              <Button size="sm" variant="ghost" onClick={() => onOpenChange(false)}>
-                Done
-              </Button>
+                    : 'Resend code'}
+              </button>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => { setCodeError(null); setCode(''); setPanel('email'); }}
+              >
+                Use a different email
+              </button>
             </div>
-          </div>
+          </form>
         )}
       </PopoverContent>
     </Popover>

@@ -11,6 +11,9 @@ import {
   clearLocalData,
   hasSeenFirstRun,
   markFirstRunSeen,
+  readLastEmail,
+  writeLastEmail,
+  clearLastEmail,
 } from './localStore';
 import type { Task, Sprint, KanbanColumn } from '../types/task';
 
@@ -150,6 +153,32 @@ describe('clearLocalData', () => {
     markFirstRunSeen();
     clearLocalData();
     expect(localStorage.getItem('fulfill:first-run-seen')).toBe('true');
+  });
+
+  it('does not remove the remembered email (must survive sign-out)', () => {
+    writeLastEmail('user@test.com');
+    writeTasks([TASK]);
+    clearLocalData();
+    expect(readLastEmail()).toBe('user@test.com');
+  });
+});
+
+// ── remembered email ─────────────────────────────────────────────────────────
+
+describe('readLastEmail / writeLastEmail / clearLastEmail', () => {
+  it('returns null when nothing stored', () => {
+    expect(readLastEmail()).toBeNull();
+  });
+
+  it('roundtrips via writeLastEmail', () => {
+    writeLastEmail('user@test.com');
+    expect(readLastEmail()).toBe('user@test.com');
+  });
+
+  it('clearLastEmail removes the stored email', () => {
+    writeLastEmail('user@test.com');
+    clearLastEmail();
+    expect(readLastEmail()).toBeNull();
   });
 });
 

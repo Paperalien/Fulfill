@@ -102,15 +102,34 @@ This is the **only** registrar change. The apex (homepage) records are left alon
 
 ## Step 3 — Supabase Auth URL configuration
 
-**Required, or production login breaks.** Login is a Supabase magic link, and the link's redirect
-target must be allow-listed.
+**Required, or production login breaks.** Login still uses Supabase's `signInWithOtp`, so the
+redirect target must be allow-listed even though we authenticate with a typed code (see Step 3a).
 
 1. Supabase dashboard → **Authentication → URL Configuration**.
 2. **Site URL:** set to `https://fulfill.paperalien.com`.
 3. **Redirect URLs:** click *Add URL* and add `https://fulfill.paperalien.com/**`. Keep
    `http://localhost:5173/**` for local dev.
-4. Save. If this is wrong, the symptom is: the magic-link email arrives, but clicking it lands on
-   an error / doesn't sign the user in.
+4. Save.
+
+## Step 3a — Supabase email template: deliver a CODE, not a link
+
+**Required, or returning-user sign-in is broken/confusing.** We authenticate with a 6-digit code the
+user types back into the **same tab** (`supabase.auth.verifyOtp`), not an emailed link. A link opens
+the OS **default browser**, which is often *not* the browser holding the user's local (unsynced)
+tasks — so the session lands in one browser and the data is stranded in another. The email must
+therefore show the **code** and **not** a clickable link.
+
+1. Supabase dashboard → **Authentication → Email Templates**.
+2. Select the **Magic Link** template (this is the template `signInWithOtp` uses).
+3. Edit the template **body** so it:
+   - **Includes the code:** add a line such as `Your sign-in code is: {{ .Token }}`.
+   - **Removes the link:** delete the anchor/line that references `{{ .ConfirmationURL }}`. If any
+     `{{ .ConfirmationURL }}` reference remains, a clickable link will still appear.
+4. Save. Send yourself a code from the app's "Sign in" prompt. The email should show a 6-digit code
+   and **no** clickable link. If a link still appears, a `{{ .ConfirmationURL }}` reference remains.
+5. *(Optional)* Authentication → **Providers → Email** → lower the **OTP expiry** from the 1-hour
+   default (e.g. 600s) to tighten the brute-force window. Supabase already caps verify attempts and
+   throttles sends per email.
 
 ## Step 4 — Production invite email (Resend)
 
