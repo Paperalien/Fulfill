@@ -9,9 +9,7 @@ required** and seamlessly syncs to the cloud once you sign in.
 > Try it instantly — the app loads straight into a usable state with your data stored locally in
 > the browser. Add an email only when you want to sync across devices.
 
-<!-- Add screenshots here for the strongest first impression, e.g.:
-![Kanban board](docs/screenshots/kanban.png)
--->
+![Kanban board — drag-and-drop columns with semantic status, story points, tags, and due dates](docs/screenshots/kanban.png)
 
 ## Features
 
@@ -25,6 +23,14 @@ required** and seamlessly syncs to the cloud once you sign in.
   passwordless email (OTP) account to sync. Local data migrates to the server on first sign-in
   with nothing lost.
 - **Workspaces** — a personal workspace per user (shared/multi-user workspaces are on the roadmap)
+
+## Screenshots
+
+| To-Do list | Sprint management |
+| :---: | :---: |
+| ![To-Do list with status, points, and tags](docs/screenshots/todo.png) | ![Sprint management with active sprint and velocity](docs/screenshots/sprints.png) |
+
+![Charts — tasks by status, backlog aging, completion trend, and sprint velocity](docs/screenshots/charts.png)
 
 ## Tech Stack
 
