@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, Archive, Bell, RefreshCw } from 'lucide-react';
+import { PAGE_CONTAINER } from '../lib/ui';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, SearchState, SortOrder, SearchField } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
@@ -298,7 +299,7 @@ export default function TodoList() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className={PAGE_CONTAINER}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">To-Do List</h2>
         {doneActive.length > 0 && (

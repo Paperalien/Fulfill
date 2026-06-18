@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Trash2, Play, Square, Archive, Bell, RefreshCw, Pencil } from 'lucide-react';
+import { PAGE_CONTAINER } from '../lib/ui';
 import { useTaskContext } from '../contexts/TaskContext';
 import { Task, Sprint, SearchState, SearchField, SortOrder } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
@@ -146,7 +147,7 @@ export default function SprintManagement() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className={PAGE_CONTAINER}>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold">Sprint Management</h2>
         <button
