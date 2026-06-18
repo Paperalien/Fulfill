@@ -24,9 +24,17 @@ import {
 
 function Brand() {
   return (
-    <span className="flex items-baseline gap-1.5">
-      <span className="text-base font-bold tracking-tight text-foreground">Fulfill</span>
-      <span className="text-[9px] font-medium tracking-wide uppercase text-muted-foreground/70 leading-none">beta</span>
+    <span className="text-base font-bold tracking-tight text-foreground">Fulfill</span>
+  );
+}
+
+// Green "beta" pill, matching the app's existing badges (DoneFolder, Sprint "Active").
+// Lives in the main pane's top strip so it stays visible when the sidebar collapses
+// on narrow screens.
+function BetaPill() {
+  return (
+    <span className="rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide leading-none text-white dark:bg-green-500">
+      beta
     </span>
   );
 }
@@ -150,16 +158,18 @@ export default function Layout() {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 overflow-auto flex flex-col bg-background">
-        {/* Mobile top bar */}
-        <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-sidebar shrink-0">
+        {/* Top strip — always visible so the BETA badge survives the responsive
+            sidebar collapse. On mobile it also holds the nav toggle + page label. */}
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-sidebar shrink-0">
           <button
             onClick={() => setMobileOpen(true)}
-            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="md:hidden p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             aria-label="Open navigation"
           >
             <Menu size={20} />
           </button>
-          <span className="text-sm font-semibold">{pageLabel}</span>
+          <BetaPill />
+          <span className="md:hidden text-sm font-semibold">{pageLabel}</span>
         </div>
         <ReminderBanner />
         <div className="flex-1 overflow-auto">

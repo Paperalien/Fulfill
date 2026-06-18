@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Vote, Users } from 'lucide-react';
+import { PAGE_CONTAINER } from '../lib/ui';
 import { useTaskContext } from '../contexts/TaskContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -25,7 +26,7 @@ export default function PlanningPoker() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className={PAGE_CONTAINER}>
       <div className="flex items-center gap-3 mb-6">
         <Vote size={24} className="text-primary" />
         <h2 className="text-lg font-semibold">Planning Poker</h2>

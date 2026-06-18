@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { PAGE_CONTAINER } from '../lib/ui';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -453,7 +454,7 @@ function CompletionTrend() {
 // ── Main Charts page ───────────────────────────────────────────────────────
 export default function Charts() {
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className={PAGE_CONTAINER}>
       <h2 className="text-lg font-semibold mb-6">Charts</h2>
 
       <div className="mb-8">

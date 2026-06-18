@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ArchiveX, Trash2 } from 'lucide-react';
+import { PAGE_CONTAINER } from '../lib/ui';
 import { useTaskContext } from '../contexts/TaskContext';
 import { SearchState, SearchField, SortOrder } from '../types/task';
 import { filterTasks } from '../utils/searchUtils';
@@ -31,7 +32,7 @@ export default function DoneFolder() {
     sprintId ? (sprints.find((s) => s.id === sprintId)?.name ?? 'Unknown sprint') : null;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className={PAGE_CONTAINER}>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Done Folder</h2>
         <span className="text-sm text-muted-foreground">{archivedTasks.length} archived task{archivedTasks.length !== 1 ? 's' : ''}</span>
