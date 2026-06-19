@@ -16,7 +16,7 @@ import {
   clearLastEmail,
 } from '../lib/localStore';
 
-type Panel = 'choice' | 'welcome' | 'email' | 'merge-confirm' | 'code';
+type Panel = 'choice' | 'welcome' | 'email' | 'merge-confirm' | 'account-exists' | 'code';
 
 // Supabase enforces a minimum interval between code requests per email
 // (default 60s); match it so the resend button can't fire a guaranteed failure.
@@ -116,15 +116,24 @@ export function SavePrompt({
   }
 
   // Shared submit path used by both the email form and the returning-user
-  // "Email me a code" button: gate on the merge confirmation when local data
-  // would be uploaded into an existing account, otherwise send the code.
-  async function submitEmail(addr: string) {
+  // "Email me a code" button. When the email already has a server account we
+  // surface that before sending the code: a merge confirmation if there's local
+  // data to upload, otherwise a "welcome back" acknowledgment so a returning
+  // user on a new device isn't shown sign-up framing. `acknowledgeExisting` is
+  // false when the caller (the "Welcome back" panel) has already done that.
+  async function submitEmail(addr: string, acknowledgeExisting = true) {
     setSubmitting(true);
     setError(null);
     try {
-      if (hasLocalData() && (await emailHasServerData(addr))) {
-        setPanel('merge-confirm');
-        return;
+      if (await emailHasServerData(addr)) {
+        if (hasLocalData()) {
+          setPanel('merge-confirm');
+          return;
+        }
+        if (acknowledgeExisting) {
+          setPanel('account-exists');
+          return;
+        }
       }
       await sendCode(addr);
     } catch {
@@ -141,7 +150,10 @@ export function SavePrompt({
     await submitEmail(addr);
   }
 
-  async function handleMerge() {
+  // Send the code to the email already entered. Shared by the merge-confirm and
+  // account-exists panels — both just need to fire the code once the user has
+  // acknowledged that the email already has a server account.
+  async function sendCodeToEnteredEmail() {
     setSubmitting(true);
     setError(null);
     try {
@@ -222,7 +234,7 @@ export function SavePrompt({
             </div>
             {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex flex-col gap-2">
-              <Button size="sm" onClick={() => submitEmail((rememberedEmail ?? '').trim())} disabled={submitting}>
+              <Button size="sm" onClick={() => submitEmail((rememberedEmail ?? '').trim(), false)} disabled={submitting}>
                 {submitting ? 'Sending…' : 'Email me a code'}
               </Button>
               <Button size="sm" variant="ghost" onClick={handleUseDifferentEmail}>
@@ -292,11 +304,33 @@ export function SavePrompt({
             </div>
             {error && <p className="text-xs text-destructive">{error}</p>}
             <div className="flex flex-col gap-2">
-              <Button size="sm" onClick={handleMerge} disabled={submitting}>
+              <Button size="sm" onClick={sendCodeToEnteredEmail} disabled={submitting}>
                 {submitting ? 'Sending…' : 'Merge and continue'}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => { setError(null); setPanel('email'); }}>
                 Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {panel === 'account-exists' && (
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">Welcome back</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                <span className="font-medium text-foreground">{email}</span> already has an
+                account. We'll email you a 6-digit code to sign in — your saved tasks will load
+                once you're in.
+              </p>
+            </div>
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <div className="flex flex-col gap-2">
+              <Button size="sm" onClick={sendCodeToEnteredEmail} disabled={submitting}>
+                {submitting ? 'Sending…' : 'Email me a code'}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => { setError(null); setPanel('email'); }}>
+                Use a different email
               </Button>
             </div>
           </div>

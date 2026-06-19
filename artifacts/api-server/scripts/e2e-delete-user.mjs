@@ -7,12 +7,16 @@
 // Env:
 //   E2E_SESSION  path to the session JSON written by e2e-mint-user.mjs
 //                (default: artifacts/api-server/.e2e-session.json)
-import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+// @supabase/supabase-js is a dependency of pm-app (not api-server), so resolve it
+// from there — a bare specifier fails from this directory under pnpm's layout.
+const require = createRequire(path.join(REPO, "artifacts/pm-app/package.json"));
+const { createClient } = require("@supabase/supabase-js");
 const SESSION_FILE =
   process.env.E2E_SESSION || path.join(REPO, "artifacts/api-server/.e2e-session.json");
 

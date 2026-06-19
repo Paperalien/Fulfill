@@ -1,14 +1,40 @@
 # Local end-to-end (browser) tests
 
-Browser-driven e2e tests for Fulfill, run with [Playwright](https://playwright.dev/).
-Two flows live here:
+Browser-driven e2e tests for Fulfill. Flows here:
 
 | Script | Auth? | What it covers |
 |--------|-------|----------------|
 | `todo-kanban-sync.mjs` | No (local/anonymous mode) | To-Do ↔ Kanban task + due-date sync. Spec: `tests/agent/todo-kanban-sync.md` |
 | `authed-workspaces.mjs` | **Yes** | Workspaces lifecycle: personal → create → switch → rename → invite → planning poker → leave |
+| `signin-account-load.mjs` | **Yes** | New-device sign-in: returning-user "Welcome back" acknowledgment + existing tasks load after login |
 
-Each run records a `.webm` video + per-step screenshots + a `report.json`.
+Each run records a `.webm` video + per-step screenshots + a `report.json` under `.e2e-out/`.
+
+---
+
+## Quickest path — one command
+
+```bash
+pnpm e2e:signin
+```
+
+`tests/e2e/run.mjs` does everything end-to-end and **always cleans up** (even on failure):
+self-heals the local env (fetches the platform `@tailwindcss/oxide` native binding if the
+`node_modules` was installed on another OS, ensures `CORS_ALLOWED_ORIGINS`, runs `drizzle push`
+if the local schema is stale), starts the API + SPA if they aren't already up, then
+**mint cloud user → seed local DB → drive Chrome → unseed → delete cloud user**.
+
+It uses **`playwright-core` (a root devDependency) driving your system Google Chrome** — so the
+`signin` flow needs *no* `npm i playwright` and no 300 MB browser download. (The two older scripts
+above still import full `playwright`; see the manual setup below if you run them.)
+
+> The runner is self-contained: it uses `artifacts/api-server/scripts/e2e-{mint,delete}-user.mjs`
+> plus the `tests/e2e/{seed,unseed}-account.mjs` helpers. It does **not** depend on
+> `lib/db/scripts/*` (those `truncate-all` / `delete-user` maintenance scripts live on a separate
+> branch and are intentionally not used here — this runner never truncates; it removes only the one
+> seeded test workspace + user).
+
+---
 
 ---
 

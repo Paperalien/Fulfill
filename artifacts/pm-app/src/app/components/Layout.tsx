@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation } from 'react-router';
 import {
   ListTodo,
@@ -9,6 +9,7 @@ import {
   Archive,
   Trash2,
   Menu,
+  Loader2,
 } from 'lucide-react';
 import { useTaskContext } from '../contexts/TaskContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,6 +37,45 @@ function BetaPill() {
     <span className="rounded-full bg-green-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide leading-none text-white dark:bg-green-500">
       beta
     </span>
+  );
+}
+
+// Spinner shown while the authenticated task store is loading (workspace
+// resolution after sign-in, or the initial task/sprint/column fetch). The store's
+// `loading` can in principle stay true indefinitely — e.g. if AuthContext's
+// initWorkspaces() rejects (it only logs) so activeWorkspaceId never resolves, or
+// if a fetch hangs. Bound it: after a grace period, swap the spinner for an
+// explicit "taking longer than expected" state with a Reload escape hatch, so the
+// user is never stuck watching an infinite spinner.
+const LOADING_TIMEOUT_MS = 15_000;
+
+export function LoadingBoard() {
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setTimedOut(true), LOADING_TIMEOUT_MS);
+    return () => clearTimeout(id);
+  }, []);
+
+  if (timedOut) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground" role="alert">
+        <p className="text-sm">This is taking longer than expected. Your data is safe — try reloading.</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-sm px-3 py-1.5 border border-border rounded-md hover:bg-accent transition-colors"
+        >
+          Reload
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full items-center justify-center text-muted-foreground" role="status">
+      <Loader2 size={24} className="animate-spin" />
+      <span className="sr-only">Loading your tasks…</span>
+    </div>
   );
 }
 
@@ -91,7 +131,7 @@ function SidebarNav({ archivedCount, trashCount, onNavigate }: NavProps) {
 }
 
 export default function Layout() {
-  const { tasks, columns, doneColumnIds } = useTaskContext();
+  const { tasks, columns, doneColumnIds, loading } = useTaskContext();
   const { isAuthenticated } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
@@ -173,7 +213,7 @@ export default function Layout() {
         </div>
         <ReminderBanner />
         <div className="flex-1 overflow-auto">
-          <Outlet />
+          {loading ? <LoadingBoard /> : <Outlet />}
         </div>
       </main>
     </div>
