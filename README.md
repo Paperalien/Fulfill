@@ -2,7 +2,7 @@
 
 A project-management app for planning and tracking work — Kanban, sprints, story-point
 estimation, and analytics — built as a local-first web app that works with **no account
-required** and seamlessly syncs to the cloud once you sign in.
+required** and seamlessly syncs to the cloud once you sign in. Built with Claude.
 
 **Live app: [fulfill.paperalien.com](https://fulfill.paperalien.com)** &nbsp;·&nbsp; *(currently in beta)*
 
