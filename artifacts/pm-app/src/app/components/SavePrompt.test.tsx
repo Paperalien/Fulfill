@@ -59,6 +59,13 @@ beforeEach(() => {
   mockHasLocalData.mockReturnValue(false);
   mockSignInWithEmail.mockResolvedValue(undefined);
   mockVerifyOtp.mockResolvedValue(undefined);
+  // Default: the entered email has no server account. submitEmail now always
+  // calls check-email, so stub it here; tests exercising the existing-account
+  // paths override this with their own fetch stub returning hasData: true.
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ hasData: false }),
+  }));
 });
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -173,6 +180,81 @@ describe('SavePrompt', () => {
 
     await waitFor(() => expect(screen.getByText(/check your email/i)).toBeInTheDocument());
     expect(mockSignInWithEmail).toHaveBeenCalledWith('user@test.com');
+  });
+
+  // ── Existing account, no local data (returning user on a new device) ───────
+
+  it('email submit, no local data, server hasData:true → shows account-exists, does NOT send code', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hasData: true }),
+    }));
+    renderPrompt();
+
+    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
+    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'returning@test.com');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+
+    await waitFor(() => expect(screen.getByText(/welcome back/i)).toBeInTheDocument());
+    expect(screen.getByText(/already has an account/i)).toBeInTheDocument();
+    expect(mockSignInWithEmail).not.toHaveBeenCalled();
+  });
+
+  it('account-exists: "Email me a code" sends the code and shows the code panel', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hasData: true }),
+    }));
+    renderPrompt();
+
+    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
+    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'returning@test.com');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => screen.getByText(/already has an account/i));
+
+    await user.click(screen.getByRole('button', { name: /email me a code/i }));
+
+    await waitFor(() => expect(screen.getByText(/check your email/i)).toBeInTheDocument());
+    expect(mockSignInWithEmail).toHaveBeenCalledWith('returning@test.com');
+  });
+
+  it('account-exists: "Use a different email" returns to the email panel', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hasData: true }),
+    }));
+    renderPrompt();
+
+    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
+    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'returning@test.com');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => screen.getByText(/already has an account/i));
+
+    await user.click(screen.getByRole('button', { name: /use a different email/i }));
+
+    expect(screen.getByPlaceholderText(/you@example\.com/i)).toBeInTheDocument();
+    expect(mockSignInWithEmail).not.toHaveBeenCalled();
+  });
+
+  it('Welcome back panel: existing account with no local data sends the code directly (no second acknowledgment)', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ hasData: true }),
+    }));
+    render(<SavePrompt open={true} onOpenChange={vi.fn()} rememberedEmail="returning@test.com" />);
+
+    await user.click(screen.getByRole('button', { name: /email me a code/i }));
+
+    await waitFor(() => expect(screen.getByText(/check your email/i)).toBeInTheDocument());
+    expect(mockSignInWithEmail).toHaveBeenCalledWith('returning@test.com');
   });
 
   // ── Code panel (OTP verification) ──────────────────────────────────────────

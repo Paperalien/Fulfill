@@ -587,14 +587,27 @@ function useApiTaskStore(workspaceId: string | null): TaskContextValue {
 // ── Provider ─────────────────────────────────────────────────────────────────
 
 export function TaskProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, activeWorkspaceId } = useAuth();
+  const { isAuthenticated, activeWorkspaceId, session } = useAuth();
 
   // Both hooks are always called (React rules of hooks).
   // API hooks are no-ops when activeWorkspaceId is null (enabled: false).
   const localStore = useLocalTaskStore();
   const apiStore = useApiTaskStore(activeWorkspaceId);
 
-  const store = isAuthenticated ? apiStore : localStore;
+  // After sign-in (and on every reload while logged in) there is a window where
+  // `session` is set but `activeWorkspaceId` is still being resolved by
+  // ensure-personal + list-workspaces. During it `isAuthenticated` is false, so
+  // without this guard we'd fall back to the (empty) local store and the user's
+  // server tasks would appear to have vanished until the round-trips finish.
+  // Treat that window as loading instead so the UI can show a spinner rather than
+  // an alarming empty board.
+  const resolvingWorkspace = !!session && !activeWorkspaceId;
+
+  const store: TaskContextValue = isAuthenticated
+    ? apiStore
+    : resolvingWorkspace
+      ? { ...apiStore, loading: true }
+      : localStore;
 
   return (
     <TaskContext.Provider value={store}>
