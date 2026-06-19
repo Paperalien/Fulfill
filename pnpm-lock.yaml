@@ -181,6 +181,9 @@ importers:
 
   .:
     devDependencies:
+      playwright-core:
+        specifier: ^1.61.0
+        version: 1.61.0
       prettier:
         specifier: ^3.8.1
         version: 3.8.1
@@ -2979,6 +2982,11 @@ packages:
 
   pino@9.14.0:
     resolution: {integrity: sha512-8OEwKp5juEvb/MjpIc4hjqfgCNysrS94RIOMXYvpYCdm/jglrKEiAYmiumbmGhCvs+IcInsphYDFwqrjr7398w==}
+    hasBin: true
+
+  playwright-core@1.61.0:
+    resolution: {integrity: sha512-caX7TrY3Ml6egyDX0WUcTHDxodl/b51y5wJOdCEA36QviK/s2g081hvmGs8eaE3DWb6NYZQ6BjO/QkNRPenoPA==}
+    engines: {node: '>=18'}
     hasBin: true
 
   postal-mime@2.7.4:
@@ -5957,6 +5965,8 @@ snapshots:
       safe-stable-stringify: 2.5.0
       sonic-boom: 4.2.1
       thread-stream: 3.1.0
+
+  playwright-core@1.61.0: {}
 
   postal-mime@2.7.4: {}
 
