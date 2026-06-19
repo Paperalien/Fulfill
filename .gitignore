@@ -57,3 +57,6 @@ Thumbs.db
 .e2e-session.json
 tests/e2e/.e2e-out/
 tests/e2e/node_modules/
+
+# Screenshots captured during manual/agent browser runs — easy to find, never committed
+tests/screenshots/

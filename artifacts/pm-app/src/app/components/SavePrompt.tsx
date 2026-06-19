@@ -6,6 +6,11 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from '../../components/ui/popover';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { useAuth } from '../contexts/AuthContext';
@@ -26,6 +31,12 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /**
+   * Shell to render the flow in. `popover` anchors to the trigger (desktop);
+   * `dialog` is a centered modal (mobile, where there's no stable anchor once
+   * the sidebar collapses into a drawer).
+   */
+  variant?: 'popover' | 'dialog';
+  /**
    * Last email a code was sent to on this device, if any. When present the
    * prompt opens on a "Welcome back" panel pre-filled with this address so a
    * returning user can sign in with one tap.
@@ -42,6 +53,7 @@ interface Props {
 export function SavePrompt({
   open,
   onOpenChange,
+  variant = 'popover',
   rememberedEmail = null,
   resendCooldownSeconds = RESEND_COOLDOWN_SECONDS,
 }: Props) {
@@ -204,25 +216,18 @@ export function SavePrompt({
     }
   }
 
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          title={rememberedEmail ? 'Sign in' : 'Save your data'}
-        >
-          <Mail size={14} />
-          <span>{rememberedEmail ? 'Sign in' : 'Save your data'}</span>
-        </button>
-      </PopoverTrigger>
+  const triggerButton = (
+    <button
+      className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      title={rememberedEmail ? 'Sign in' : 'Save your data'}
+    >
+      <Mail size={14} />
+      <span>{rememberedEmail ? 'Sign in' : 'Save your data'}</span>
+    </button>
+  );
 
-      <PopoverContent
-        side="bottom"
-        align="start"
-        sideOffset={8}
-        collisionPadding={12}
-        className="w-80 max-w-[calc(100vw-1.5rem)]"
-      >
+  const body = (
+    <>
         {panel === 'welcome' && (
           <div className="space-y-3">
             <div>
@@ -382,6 +387,39 @@ export function SavePrompt({
             </div>
           </form>
         )}
+    </>
+  );
+
+  if (variant === 'dialog') {
+    // Controlled-only (no trigger): on mobile the "Save your data" trigger lives
+    // in the collapsible drawer, which unmounts when closed — so this dialog is
+    // mounted at the top level and opened via the SavePrompt opener instead.
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent
+          aria-describedby={undefined}
+          className="w-80 max-w-[calc(100vw-1.5rem)] gap-3"
+        >
+          {/* The visible panel headings act as the title; this keeps Radix's
+              a11y requirement satisfied without a duplicate heading. */}
+          <DialogTitle className="sr-only">Save your data</DialogTitle>
+          {body}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>{triggerButton}</PopoverTrigger>
+      <PopoverContent
+        side="bottom"
+        align="start"
+        sideOffset={8}
+        collisionPadding={12}
+        className="w-80 max-w-[calc(100vw-1.5rem)]"
+      >
+        {body}
       </PopoverContent>
     </Popover>
   );

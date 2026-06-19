@@ -371,4 +371,21 @@ describe('SavePrompt', () => {
     await waitFor(() => expect(mockSignInWithEmail).toHaveBeenCalledWith('user@test.com'));
     expect(mockToast).toHaveBeenCalledWith('Code resent');
   });
+
+  it('dialog variant: renders the flow inside a centered modal and works', async () => {
+    const user = userEvent.setup();
+    mockHasLocalData.mockReturnValue(false);
+    render(<SavePrompt open={true} onOpenChange={vi.fn()} variant="dialog" />);
+
+    // Content is inside a dialog (modal), not an anchored popover.
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText(/save across devices\?/i)).toBeInTheDocument();
+
+    // The flow still advances to the code panel.
+    await user.click(screen.getByRole('button', { name: /yes, set me up/i }));
+    await user.type(screen.getByPlaceholderText(/you@example\.com/i), 'user@test.com');
+    await user.click(screen.getByRole('button', { name: /continue/i }));
+    await waitFor(() => expect(screen.getByText(/check your email/i)).toBeInTheDocument());
+    expect(mockSignInWithEmail).toHaveBeenCalledWith('user@test.com');
+  });
 });

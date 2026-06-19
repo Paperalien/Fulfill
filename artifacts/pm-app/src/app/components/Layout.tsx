@@ -15,7 +15,10 @@ import { useTaskContext } from '../contexts/TaskContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ReminderBanner } from './ReminderBanner';
 import { AuthArea } from './AuthArea';
+import { SaveDataTrigger } from './SaveDataTrigger';
+import { WelcomeIntro } from './WelcomeIntro';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
+import { SavePromptProvider } from '../contexts/SavePromptContext';
 import {
   Sheet,
   SheetContent,
@@ -150,7 +153,14 @@ export default function Layout() {
   const navProps = { archivedCount, trashCount };
 
   return (
-    <div className="min-h-screen flex bg-background">
+    <SavePromptProvider>
+      {/* Singleton first-run intro; renders nothing once dismissed/not applicable. */}
+      <WelcomeIntro />
+      {/* Mobile save flow: a centered dialog mounted here (not in the drawer,
+          which unmounts when closed) so it can always be opened. Renders nothing
+          on desktop, where the sidebar popover handles it instead. */}
+      <AuthArea placement="mobile" />
+      <div className="min-h-screen flex bg-background">
       {/* Desktop sidebar — hidden below md breakpoint */}
       <aside className="hidden md:flex w-56 shrink-0 border-r border-border bg-sidebar flex-col">
         <div className="px-4 py-5 border-b border-border">
@@ -162,7 +172,7 @@ export default function Layout() {
             </p>
           )}
           <div className="mt-2">
-            {isAuthenticated ? <WorkspaceSwitcher /> : <AuthArea />}
+            {isAuthenticated ? <WorkspaceSwitcher /> : <AuthArea placement="desktop" />}
           </div>
         </div>
         <SidebarNav {...navProps} />
@@ -186,7 +196,7 @@ export default function Layout() {
               </p>
             )}
             <div className="mt-2">
-              <AuthArea />
+              <SaveDataTrigger />
             </div>
           </div>
           <SidebarNav {...navProps} onNavigate={() => setMobileOpen(false)} />
@@ -216,6 +226,7 @@ export default function Layout() {
           {loading ? <LoadingBoard /> : <Outlet />}
         </div>
       </main>
-    </div>
+      </div>
+    </SavePromptProvider>
   );
 }
