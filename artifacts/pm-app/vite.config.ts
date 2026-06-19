@@ -56,5 +56,14 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Vitest injects these into import.meta.env for *every* test module, so
+    // modules that read VITE_* config at import time (e.g. supabase.ts creating
+    // the client) don't crash in CI where no .env file is present. Reassigning
+    // import.meta.env from a setup file does NOT work — import.meta is per-module.
+    env: {
+      VITE_API_BASE_URL: 'http://localhost:3000',
+      VITE_SUPABASE_URL: 'https://test.supabase.co',
+      VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+    },
   },
 });

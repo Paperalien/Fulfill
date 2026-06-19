@@ -1,8 +1,7 @@
 import '@testing-library/jest-dom';
 
-// Set env vars needed by modules that read import.meta.env at module evaluation time
-(import.meta as unknown as Record<string, unknown>).env = {
-  VITE_API_BASE_URL: 'http://localhost:3000',
-  VITE_SUPABASE_URL: 'https://test.supabase.co',
-  VITE_SUPABASE_ANON_KEY: 'test-anon-key',
-};
+// Env vars needed by modules that read import.meta.env at import time (e.g.
+// supabase.ts) are provided via `test.env` in vite.config.ts. They must live
+// there, not here: reassigning import.meta.env from a setup file only affects
+// this module's own import.meta, leaving other modules with undefined config —
+// which is why this used to pass locally (via .env) but crash in CI.
